@@ -13,21 +13,31 @@ export const AdminList = ({ tickets, onUpdateTicket }: AdminListProps) => {
   const [filterStatus, setFilterStatus] = useState<'ALL' | Status>('ALL')
   const [filterSearch, setFilterSearch] = useState('')
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
+  const [sortDate, setSortDate] = useState<'desc' | 'asc'>('desc')
 
   const filteredTickets = useMemo(() => {
-    return tickets.filter(t => {
+    let filtered = tickets.filter(t => {
       const matchStatus = filterStatus === 'ALL' || t.status === filterStatus
       const matchSearch = t.title.toLowerCase().includes(filterSearch.toLowerCase()) || t.room.toLowerCase().includes(filterSearch.toLowerCase())
       return matchStatus && matchSearch
     })
-  }, [tickets, filterStatus, filterSearch])
+    
+    // Sort by date
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.date).getTime()
+      const dateB = new Date(b.date).getTime()
+      return sortDate === 'desc' ? dateB - dateA : dateA - dateB
+    })
+    
+    return filtered
+  }, [tickets, filterStatus, filterSearch, sortDate])
 
   const exportToCSV = () => {
-    const headers = ['ID', 'Date', 'Demandeur', 'Salle', 'Titre', 'Statut', 'Traitant', 'Risque']
+    const headers = ['Date', 'Demandeur', 'Salle', 'Titre', 'Statut', 'Traitant', 'Risque']
     const csvContent = [
       headers.join(';'),
       ...filteredTickets.map(t =>
-        [t.id, t.date, t.name, t.room, `"${t.title}"`, t.status, t.handler || 'Non assigné', t.risk ? 'OUI' : 'NON'].join(';')
+        [t.date, t.name, t.room, `"${t.title}"`, t.status, t.handler || 'Non assigné', t.risk ? 'OUI' : 'NON'].join(';')
       )
     ].join('\n')
 
@@ -61,8 +71,14 @@ export const AdminList = ({ tickets, onUpdateTicket }: AdminListProps) => {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="border-b-2 border-black bg-gray-50">
-              <th className="p-3 font-bold text-sm">ID / Date</th>
-              <th className="p-3 font-bold text-sm">Titre & Lieu</th>
+              <th className="p-3 font-bold text-sm cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => setSortDate(sortDate === 'desc' ? 'asc' : 'desc')}>
+                <div className="flex items-center gap-2">
+                  Date
+                  <span className="text-xs">{sortDate === 'desc' ? '↓' : '↑'}</span>
+                </div>
+              </th>
+              <th className="p-3 font-bold text-sm">Titre</th>
+              <th className="p-3 font-bold text-sm">Lieu</th>
               <th className="p-3 font-bold text-sm">Statut</th>
               <th className="p-3 font-bold text-sm">Traitant</th>
               <th className="p-3 font-bold text-sm text-center">Actions</th>
@@ -72,11 +88,12 @@ export const AdminList = ({ tickets, onUpdateTicket }: AdminListProps) => {
             {filteredTickets.map(ticket => (
               <tr key={ticket.id} className={`border-b hover:bg-gray-50 transition-colors ${ticket.risk ? 'bg-red-50/50' : ''}`}>
                 <td className="p-3">
-                  <div className="font-mono text-sm">{ticket.id}</div>
-                  <div className="text-xs text-gray-500">{ticket.date}</div>
+                  <div className="text-sm">{ticket.date}</div>
                 </td>
                 <td className="p-3">
                   <div className="font-bold">{ticket.title} {ticket.risk && <span className="inline-block ml-2 w-2 h-2 rounded-full bg-red-500" title="Risque"></span>}</div>
+                </td>
+                <td className="p-3">
                   <div className="text-sm text-gray-600">{ticket.room}</div>
                 </td>
                 <td className="p-3">
@@ -107,7 +124,7 @@ export const AdminList = ({ tickets, onUpdateTicket }: AdminListProps) => {
               </tr>
             ))}
             {filteredTickets.length === 0 && (
-              <tr><td colSpan={5} className="p-6 text-center text-gray-500">Aucun ticket trouvé.</td></tr>
+              <tr><td colSpan={6} className="p-6 text-center text-gray-500">Aucun ticket trouvé.</td></tr>
             )}
           </tbody>
         </table>
