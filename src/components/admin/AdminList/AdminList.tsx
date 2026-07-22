@@ -5,8 +5,11 @@ import { Icons } from '../../ui/Icons/Icons'
 import { TicketModal } from '../TicketModal/TicketModal'
 import styles from './AdminList.module.css'
 
-interface AdminListProps {
+/** Props pour le composant AdminList */
+export interface AdminListProps {
+  /** Liste des tickets à afficher */
   tickets: Ticket[]
+  /** Callback pour mettre à jour un ticket */
   onUpdateTicket: (id: string, field: TicketField, value: string) => void | Promise<void>
 }
 

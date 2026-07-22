@@ -1,0 +1,15 @@
+{
+  "entryPoints": ["src"],
+  "entryPointStrategy": "expand",
+  "out": "docs",
+  "theme": "default",
+  "readme": "DOCUMENTATION.md",
+  "includeVersion": true,
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "hideGenerator": false,
+  "commentStyle": "jsdoc",
+  "tsconfig": "tsconfig.app.json",
+  "highlightLanguages": ["typescript", "bash", "sql", "json"]
+}
