@@ -6,9 +6,10 @@ interface AutocompleteInputProps {
   onChange: (value: string) => void
   options: string[]
   placeholder: string
+  disabled?: boolean
 }
 
-export const AutocompleteInput = ({ value, onChange, options, placeholder }: AutocompleteInputProps) => {
+export const AutocompleteInput = ({ value, onChange, options, placeholder, disabled = false }: AutocompleteInputProps) => {
   const [isOpen, setIsOpen] = useState(false)
   const [search, setSearch] = useState(value)
 
@@ -16,13 +17,14 @@ export const AutocompleteInput = ({ value, onChange, options, placeholder }: Aut
 
   return (
     <div className="relative">
-      <div className="flex items-center border-2 border-gray-200 rounded p-2 focus-within:border-black transition-colors bg-white">
+      <div className={`flex items-center border-2 border-gray-200 rounded p-2 focus-within:border-black transition-colors bg-white ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
         <Icons.Search />
         <input
           type="text"
-          className="w-full ml-2 outline-none"
+          className="w-full ml-2 outline-none disabled:bg-white"
           placeholder={placeholder}
           value={search}
+          disabled={disabled}
           onChange={(e) => { setSearch(e.target.value); onChange(e.target.value); setIsOpen(true) }}
           onFocus={() => setIsOpen(true)}
           onBlur={() => setTimeout(() => setIsOpen(false), 200)}

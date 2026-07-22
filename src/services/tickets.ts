@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import type { FormData, Status, Ticket, TicketField } from '../types/helpdesk'
+import { helpdeskDataService } from './helpdeskData'
 
 type TicketRow = {
   id: number
@@ -68,7 +69,7 @@ const loadTickets = async (): Promise<Ticket[]> => {
 
   return (ticketsResult.data as TicketRow[]).map(row => ({
     id: String(row.id),
-    date: row.created_at.slice(0, 10),
+    date: row.created_at?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
     name: row.demandeur_nom,
     email: row.demandeur_email,
     room: rooms.get(row.salle_id) ?? `Salle ${row.salle_id}`,
@@ -109,7 +110,7 @@ export const ticketService = {
         salle_id: roomResult.data.id,
         titre: form.title,
         description: form.comment,
-        image_url: form.photo,
+        image_url: form.photo || null,
         risque_accident: form.risk,
         statut: 'nouveau',
       }).select('id').single()
@@ -120,6 +121,9 @@ export const ticketService = {
         const { error: linkError } = await client.from('ticket_categories').insert(links)
         if (linkError) throw linkError
       }
+
+      // Clear cache after creating a ticket
+      helpdeskDataService.clearCache()
 
       const tickets = await loadTickets()
       const created = tickets.find(ticket => ticket.id === String(data.id))

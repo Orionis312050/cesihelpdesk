@@ -1,5 +1,5 @@
-import { useState, type ChangeEvent, type DragEvent, type FormEvent } from 'react'
-import { INCIDENT_TYPES, ROOMS } from '../../data/helpdesk'
+import { useState, useEffect, type ChangeEvent, type DragEvent, type FormEvent } from 'react'
+import { helpdeskDataService } from '../../services/helpdeskData'
 import type { FormData } from '../../types/helpdesk'
 import { AutocompleteInput } from '../ui/AutocompleteInput'
 import { Icons } from '../ui/Icons'
@@ -17,6 +17,27 @@ export const UserForm = ({ onSubmit, isAdminContext }: UserFormProps) => {
   const [formData, setFormData] = useState<FormData>(EMPTY_FORM)
   const [dragActive, setDragActive] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [rooms, setRooms] = useState<string[]>([])
+  const [incidentTypes, setIncidentTypes] = useState<string[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [loadedRooms, loadedTypes] = await Promise.all([
+          helpdeskDataService.getRooms(),
+          helpdeskDataService.getIncidentTypes(),
+        ])
+        setRooms(loadedRooms)
+        setIncidentTypes(loadedTypes)
+      } catch (error) {
+        console.error('Erreur lors du chargement des données:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadData()
+  }, [])
 
   const handleTypeChange = (type: string) => {
     setFormData(prev => ({
@@ -81,7 +102,7 @@ export const UserForm = ({ onSubmit, isAdminContext }: UserFormProps) => {
           <h3 className="text-lg font-bold border-b-2 border-gray-200 pb-2">2. Localisation de l'incident</h3>
           <div>
             <label className="block text-sm font-bold mb-1">Salle concernée *</label>
-            <AutocompleteInput value={formData.room} onChange={(val) => setFormData({...formData, room: val})} options={ROOMS} placeholder="Rechercher une salle..." />
+            <AutocompleteInput value={formData.room} onChange={(val) => setFormData({...formData, room: val})} options={rooms} placeholder="Rechercher une salle..." disabled={loading} />
           </div>
         </div>
 
@@ -90,14 +111,18 @@ export const UserForm = ({ onSubmit, isAdminContext }: UserFormProps) => {
 
           <div>
             <label className="block text-sm font-bold mb-2">Type d'incident (plusieurs possibles)</label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {INCIDENT_TYPES.map(type => (
-                <label key={type} className="flex items-center p-2 border border-gray-100 rounded hover:bg-gray-50 cursor-pointer">
-                  <input type="checkbox" className="w-4 h-4 text-black focus:ring-black border-gray-300 rounded mr-2" checked={formData.types.includes(type)} onChange={() => handleTypeChange(type)} />
-                  <span className="text-sm">{type}</span>
-                </label>
-              ))}
-            </div>
+            {loading ? (
+              <p className="text-gray-500">Chargement des types d'incident...</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {incidentTypes.map(type => (
+                  <label key={type} className="flex items-center p-2 border border-gray-100 rounded hover:bg-gray-50 cursor-pointer">
+                    <input type="checkbox" className="w-4 h-4 text-black focus:ring-black border-gray-300 rounded mr-2" checked={formData.types.includes(type)} onChange={() => handleTypeChange(type)} />
+                    <span className="text-sm">{type}</span>
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
 
           <div>
