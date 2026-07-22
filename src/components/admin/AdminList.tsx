@@ -86,12 +86,15 @@ export const AdminList = ({ tickets, onUpdateTicket }: AdminListProps) => {
           </thead>
           <tbody>
             {filteredTickets.map(ticket => (
-              <tr key={ticket.id} className={`border-b hover:bg-gray-50 transition-colors ${ticket.risk ? 'bg-red-50/50' : ''}`}>
+              <tr key={ticket.id} className={`border-b hover:bg-gray-50 transition-colors ${ticket.risk ? 'bg-red-100/50' : ''}`}>
                 <td className="p-3">
                   <div className="text-sm">{ticket.date}</div>
                 </td>
                 <td className="p-3">
-                  <div className="font-bold">{ticket.title} {ticket.risk && <span className="inline-block ml-2 w-2 h-2 rounded-full bg-red-500" title="Risque"></span>}</div>
+                  <div className="font-bold flex items-center gap-2">
+                    {ticket.title}
+                    {ticket.risk && <span className="text-red-600"><Icons.Alert /></span>}
+                  </div>
                 </td>
                 <td className="p-3">
                   <div className="text-sm text-gray-600">{ticket.room}</div>
