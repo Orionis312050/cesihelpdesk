@@ -1,5 +1,5 @@
-import type { Ticket, TicketField } from '../../types/helpdesk'
-import { Icons } from '../ui/Icons'
+import type { Ticket, TicketField } from '../../../types/helpdesk'
+import { Icons } from '../../ui/Icons/Icons'
 
 interface TicketModalProps {
   ticket: Ticket

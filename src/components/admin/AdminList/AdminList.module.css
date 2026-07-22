@@ -1,0 +1,32 @@
+/* Sortable header - custom hover effect */
+.sortableHeader {
+  cursor: pointer;
+  transition: background-color 150ms ease-in-out;
+}
+
+.sortableHeader:hover {
+  background-color: #f3f4f6;
+}
+
+/* Row with risk - higher opacity */
+.rowRisk {
+  background-color: rgba(239, 68, 68, 0.85);
+}
+
+/* Smooth transitions */
+.tableRow {
+  transition: background-color 150ms ease-in-out;
+}
+
+/* Table interactions */
+.tableInput:focus,
+.tableSelect:focus {
+  outline: none;
+}
+
+/* Text truncation for long titles */
+.titleWithIcon {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}

@@ -1,8 +1,8 @@
 import { useState, useEffect, type ChangeEvent, type DragEvent, type FormEvent } from 'react'
-import { helpdeskDataService } from '../../services/helpdeskData'
-import type { FormData } from '../../types/helpdesk'
-import { AutocompleteInput } from '../ui/AutocompleteInput'
-import { Icons } from '../ui/Icons'
+import { helpdeskDataService } from '../../../services/helpdeskData'
+import type { FormData } from '../../../types/helpdesk'
+import { AutocompleteInput } from '../../ui/AutocompleteInput/AutocompleteInput'
+import { Icons } from '../../ui/Icons/Icons'
 
 interface UserFormProps {
   onSubmit: (data: FormData) => Promise<void>

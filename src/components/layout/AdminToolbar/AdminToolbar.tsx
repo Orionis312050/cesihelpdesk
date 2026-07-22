@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react'
-import type { View } from '../../types/helpdesk'
-import { Icons } from '../ui/Icons'
+import type { View } from '../../../types/helpdesk'
+import { Icons } from '../../ui/Icons/Icons'
 
 interface AdminToolbarProps {
   setCurrentView: Dispatch<SetStateAction<View>>

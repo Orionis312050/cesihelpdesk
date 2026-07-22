@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
-import { STATUSES } from '../../data/helpdesk'
-import type { Status, Ticket, TicketField } from '../../types/helpdesk'
-import { Icons } from '../ui/Icons'
-import { TicketModal } from './TicketModal'
+import { STATUSES } from '../../../data/helpdesk'
+import type { Status, Ticket, TicketField } from '../../../types/helpdesk'
+import { Icons } from '../../ui/Icons/Icons'
+import { TicketModal } from '../TicketModal/TicketModal'
+import styles from './AdminList.module.css'
 
 interface AdminListProps {
   tickets: Ticket[]
@@ -71,7 +72,7 @@ export const AdminList = ({ tickets, onUpdateTicket }: AdminListProps) => {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="border-b-2 border-black bg-gray-50">
-              <th className="p-3 font-bold text-sm cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => setSortDate(sortDate === 'desc' ? 'asc' : 'desc')}>
+              <th className={`p-3 font-bold text-sm ${styles.sortableHeader}`} onClick={() => setSortDate(sortDate === 'desc' ? 'asc' : 'desc')}>
                 <div className="flex items-center gap-2">
                   Date
                   <span className="text-xs">{sortDate === 'desc' ? '↓' : '↑'}</span>
@@ -86,12 +87,12 @@ export const AdminList = ({ tickets, onUpdateTicket }: AdminListProps) => {
           </thead>
           <tbody>
             {filteredTickets.map(ticket => (
-              <tr key={ticket.id} className={`border-b hover:bg-gray-50 transition-colors ${ticket.risk ? 'bg-red-100/50' : ''}`}>
+              <tr key={ticket.id} className={`border-b ${styles.tableRow} ${ticket.risk ? styles.rowRisk : 'hover:bg-gray-50'}`}>
                 <td className="p-3">
                   <div className="text-sm">{ticket.date}</div>
                 </td>
                 <td className="p-3">
-                  <div className="font-bold flex items-center gap-2">
+                  <div className={`font-bold ${styles.titleWithIcon}`}>
                     {ticket.title}
                     {ticket.risk && <span className="text-red-600"><Icons.Alert /></span>}
                   </div>

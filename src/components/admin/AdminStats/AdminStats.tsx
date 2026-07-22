@@ -1,4 +1,4 @@
-import type { Ticket } from '../../types/helpdesk'
+import type { Ticket } from '../../../types/helpdesk'
 
 export const AdminStats = ({ tickets }: { tickets: Ticket[] }) => {
   const total = tickets.length
