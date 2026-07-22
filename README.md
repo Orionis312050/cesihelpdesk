@@ -8,7 +8,7 @@ Application React/Vite avec une persistance adaptée à l'environnement :
 ## Développement avec Supabase
 
 1. Exécuter `database/supabase.sql` dans l'éditeur SQL Supabase.
-2. Copier `.env.development.example` vers `.env.development` et renseigner l'URL et la clé `anon`.
+2. Copier `.env.development` vers `.env.development` et renseigner l'URL et la clé `anon`.
 3. Lancer `npm run dev`.
 
 La policy RLS fournie autorise l'accès anonyme complet pour faciliter le développement. Elle ne doit pas être utilisée telle quelle pour exposer une instance Supabase en production.
@@ -16,7 +16,7 @@ La policy RLS fournie autorise l'accès anonyme complet pour faciliter le dével
 ## Production avec MySQL
 
 1. Créer une base puis exécuter `database/mysql.sql`.
-2. Copier `.env.production.example` vers `.env.production` et renseigner la connexion MySQL.
+2. Copier `.env.production` vers `.env.production` et renseigner la connexion MySQL.
 3. Exécuter `npm run build`.
 4. Lancer `npm start` (le serveur charge `.env.production`, puis `.env` en repli).
 
