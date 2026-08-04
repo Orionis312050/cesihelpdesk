@@ -1,174 +1,292 @@
-import { useState, useEffect, type ChangeEvent, type DragEvent, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { helpdeskDataService } from '../../../services/helpdeskData'
-import type { FormData } from '../../../types/helpdesk'
+import type { TicketInput } from '../../../types/helpdesk'
+import type { ImageCompressee } from '../../../utils/imageCompression'
 import { AutocompleteInput } from '../../ui/AutocompleteInput/AutocompleteInput'
-import { Icons } from '../../ui/Icons/Icons'
+import { PhotoUpload } from '../PhotoUpload/PhotoUpload'
 
 interface UserFormProps {
-  onSubmit: (data: FormData) => Promise<void>
+  /** Envoie la déclaration. Reçoit la photo compressée à téléverser, s'il y en a une. */
+  onSubmit: (data: TicketInput, photo: ImageCompressee | null) => Promise<void>
+  /** Affiche le formulaire dans l'espace d'administration */
   isAdminContext: boolean
+  /** Salle imposée par le QR code scanné */
+  salleImposee?: string
 }
 
-const EMPTY_FORM: FormData = {
-  name: '', email: '', room: '', types: [], title: '', comment: '', risk: false, photo: null
+/** Champs pouvant porter une erreur de validation. */
+type ChampErreur = 'name' | 'email' | 'room' | 'title' | 'comment'
+
+const FORMULAIRE_VIDE: TicketInput = {
+  name: '', email: '', room: '', types: [], title: '', comment: '', risk: false, photoPath: null,
 }
 
-export const UserForm = ({ onSubmit, isAdminContext }: UserFormProps) => {
-  const [formData, setFormData] = useState<FormData>(EMPTY_FORM)
-  const [dragActive, setDragActive] = useState(false)
+const EMAIL_VALIDE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
+
+const classesChamp = (enErreur: boolean) =>
+  `w-full border-2 rounded p-2 min-h-11 outline-none transition-colors ${
+    enErreur ? 'border-red-500 bg-red-50' : 'border-gray-200 focus:border-black'
+  }`
+
+export const UserForm = ({ onSubmit, isAdminContext, salleImposee }: UserFormProps) => {
+  const [formData, setFormData] = useState<TicketInput>({
+    ...FORMULAIRE_VIDE,
+    room: salleImposee ?? '',
+  })
+  const [photo, setPhoto] = useState<ImageCompressee | null>(null)
+  const [erreurs, setErreurs] = useState<Partial<Record<ChampErreur, string>>>({})
   const [submitting, setSubmitting] = useState(false)
   const [rooms, setRooms] = useState<string[]>([])
   const [incidentTypes, setIncidentTypes] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+  const [chargementEchoue, setChargementEchoue] = useState(false)
+  const formRef = useRef<HTMLFormElement>(null)
+
+  // La salle du QR code peut changer après le premier rendu (navigation d'une
+  // affiche à l'autre). Ajusté pendant le rendu plutôt que dans un effet, pour
+  // ne pas afficher brièvement l'ancienne salle.
+  const [sallePrecedente, setSallePrecedente] = useState(salleImposee)
+  if (salleImposee !== sallePrecedente) {
+    setSallePrecedente(salleImposee)
+    if (salleImposee) setFormData(current => ({ ...current, room: salleImposee }))
+  }
 
   useEffect(() => {
-    const loadData = async () => {
+    const charger = async () => {
       try {
-        const [loadedRooms, loadedTypes] = await Promise.all([
+        const [chargees, types] = await Promise.all([
           helpdeskDataService.getRooms(),
           helpdeskDataService.getIncidentTypes(),
         ])
-        setRooms(loadedRooms)
-        setIncidentTypes(loadedTypes)
-      } catch (error) {
-        console.error('Erreur lors du chargement des données:', error)
+        setRooms(chargees)
+        setIncidentTypes(types)
+      } catch {
+        setChargementEchoue(true)
       } finally {
         setLoading(false)
       }
     }
-    loadData()
+    void charger()
   }, [])
 
   const handleTypeChange = (type: string) => {
     setFormData(prev => ({
       ...prev,
-      types: prev.types.includes(type) ? prev.types.filter(t => t !== type) : [...prev.types, type]
+      types: prev.types.includes(type) ? prev.types.filter(t => t !== type) : [...prev.types, type],
     }))
   }
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    if (!formData.name || !formData.email || !formData.room || !formData.title) {
-      alert("Veuillez remplir les champs obligatoires.")
+  /** Valide la saisie et renvoie les erreurs par champ. */
+  const valider = (data: TicketInput): Partial<Record<ChampErreur, string>> => {
+    const trouvees: Partial<Record<ChampErreur, string>> = {}
+    if (!data.name.trim()) trouvees.name = 'Indiquez votre nom et prénom.'
+    if (!data.email.trim()) trouvees.email = 'Indiquez votre adresse e-mail.'
+    else if (!EMAIL_VALIDE.test(data.email.trim())) trouvees.email = 'Cette adresse e-mail n’est pas valide.'
+    if (!data.room.trim()) trouvees.room = 'Choisissez la salle concernée.'
+    else if (rooms.length > 0 && !rooms.includes(data.room)) trouvees.room = 'Cette salle n’existe pas. Choisissez-en une dans la liste.'
+    if (!data.title.trim()) trouvees.title = 'Donnez un titre court à l’intervention.'
+    if (!data.comment.trim()) trouvees.comment = 'Décrivez le problème constaté.'
+    return trouvees
+  }
+
+  const handleSubmit = async (evenement: FormEvent<HTMLFormElement>) => {
+    evenement.preventDefault()
+
+    const trouvees = valider(formData)
+    setErreurs(trouvees)
+
+    if (Object.keys(trouvees).length > 0) {
+      // Le focus part sur le premier champ fautif : sur mobile, l'erreur peut
+      // être hors écran et passer totalement inaperçue.
+      const premier = formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')
+      premier?.focus()
+      premier?.scrollIntoView({ block: 'center', behavior: 'smooth' })
       return
     }
+
     setSubmitting(true)
     try {
-      await onSubmit(formData)
-      setFormData(EMPTY_FORM)
+      await onSubmit(formData, photo)
+      // Réinitialisation seulement en cas de succès : après un échec réseau, la
+      // saisie doit être conservée, sinon tout est à retaper.
+      setFormData({ ...FORMULAIRE_VIDE, room: salleImposee ?? '' })
+      setPhoto(null)
+      setErreurs({})
+    } catch {
+      // Le message d'erreur est affiché par l'appelant (notification).
     } finally {
       setSubmitting(false)
     }
   }
 
-  const handlePhotoUpload = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setFormData({ ...formData, photo: file.name })
-    }
-  }
-
-  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    setDragActive(false)
-    if (e.dataTransfer.files[0]) setFormData({ ...formData, photo: e.dataTransfer.files[0].name })
-  }
+  const messageErreur = (champ: ChampErreur) =>
+    erreurs[champ]
+      ? <p id={`erreur-${champ}`} role="alert" className="mt-1 text-sm text-red-700 font-medium">{erreurs[champ]}</p>
+      : null
 
   return (
-    <div className="max-w-3xl mx-auto bg-white border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-xl overflow-hidden mt-8 mb-12">
-      <div className="bg-[#FBE800] border-b-4 border-black p-6">
-        <h2 className="text-3xl font-black uppercase tracking-tight">
-          {isAdminContext ? 'Saisie Admin' : 'Déclarer un incident'}
-        </h2>
+    <div className="max-w-3xl mx-auto bg-white border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-xl overflow-hidden mt-4 mb-12">
+      <div className="bg-cesi-jaune border-b-4 border-black p-6">
+        <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight">
+          {isAdminContext ? 'Saisie administrateur' : 'Déclarer un incident'}
+        </h1>
         <p className="font-medium mt-2">Aidez-nous à maintenir le campus en parfait état.</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-8">
-        <div className="space-y-4">
-          <h3 className="text-lg font-bold border-b-2 border-gray-200 pb-2">1. Vos informations</h3>
+      {chargementEchoue && (
+        <p role="alert" className="m-6 bg-red-50 border-l-4 border-red-600 text-red-800 text-sm p-3 rounded">
+          La liste des salles et des types d'incident n'a pas pu être chargée.
+          Vérifiez votre connexion, puis rechargez la page.
+        </p>
+      )}
+
+      <form ref={formRef} onSubmit={handleSubmit} className="p-6 md:p-8 space-y-8" noValidate>
+        <section className="space-y-4">
+          <h2 className="text-lg font-bold border-b-2 border-gray-200 pb-2">1. Vos informations</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-bold mb-1">Nom & Prénom *</label>
-              <input type="text" required className="w-full border-2 border-gray-200 rounded p-2 focus:border-black outline-none transition-colors" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+              <label htmlFor="nom" className="block text-sm font-bold mb-1">Nom &amp; Prénom *</label>
+              <input
+                id="nom"
+                type="text"
+                autoComplete="name"
+                aria-invalid={Boolean(erreurs.name)}
+                aria-describedby={erreurs.name ? 'erreur-name' : undefined}
+                className={classesChamp(Boolean(erreurs.name))}
+                value={formData.name}
+                onChange={e => setFormData({ ...formData, name: e.target.value })}
+              />
+              {messageErreur('name')}
             </div>
             <div>
-              <label className="block text-sm font-bold mb-1">Email *</label>
-              <input type="email" required className="w-full border-2 border-gray-200 rounded p-2 focus:border-black outline-none transition-colors" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+              <label htmlFor="email" className="block text-sm font-bold mb-1">Email *</label>
+              <input
+                id="email"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                aria-invalid={Boolean(erreurs.email)}
+                aria-describedby={erreurs.email ? 'erreur-email' : undefined}
+                className={classesChamp(Boolean(erreurs.email))}
+                value={formData.email}
+                onChange={e => setFormData({ ...formData, email: e.target.value })}
+              />
+              {messageErreur('email')}
             </div>
           </div>
-        </div>
+        </section>
 
-        <div className="space-y-4">
-          <h3 className="text-lg font-bold border-b-2 border-gray-200 pb-2">2. Localisation de l'incident</h3>
-          <div>
-            <label className="block text-sm font-bold mb-1">Salle concernée *</label>
-            <AutocompleteInput value={formData.room} onChange={(val) => setFormData({...formData, room: val})} options={rooms} placeholder="Rechercher une salle..." disabled={loading} />
-          </div>
-        </div>
+        <section className="space-y-4">
+          <h2 className="text-lg font-bold border-b-2 border-gray-200 pb-2">2. Localisation de l'incident</h2>
 
-        <div className="space-y-4">
-          <h3 className="text-lg font-bold border-b-2 border-gray-200 pb-2">3. Nature de l'intervention</h3>
+          {salleImposee ? (
+            // Salle issue d'un QR code : confirmée visuellement, mais toujours
+            // corrigeable — une affiche peut avoir été déplacée ou décollée.
+            <div className="bg-cesi-jaune/30 border-2 border-black rounded p-4">
+              <p className="text-sm font-bold text-gray-700">Salle détectée par le QR code</p>
+              <p className="text-2xl font-black tracking-tight">{salleImposee}</p>
+              <a href="/signaler" className="text-sm underline hover:no-underline mt-1 inline-block">
+                Ce n'est pas la bonne salle ?
+              </a>
+            </div>
+          ) : (
+            <div>
+              <label htmlFor="salle" className="block text-sm font-bold mb-1">Salle concernée *</label>
+              <AutocompleteInput
+                id="salle"
+                value={formData.room}
+                onChange={valeur => setFormData({ ...formData, room: valeur })}
+                options={rooms}
+                placeholder="Rechercher une salle…"
+                disabled={loading}
+                invalide={Boolean(erreurs.room)}
+                descriptionId={erreurs.room ? 'erreur-room' : undefined}
+              />
+              {messageErreur('room')}
+            </div>
+          )}
+        </section>
 
-          <div>
-            <label className="block text-sm font-bold mb-2">Type d'incident (plusieurs possibles)</label>
+        <section className="space-y-4">
+          <h2 className="text-lg font-bold border-b-2 border-gray-200 pb-2">3. Nature de l'intervention</h2>
+
+          <fieldset>
+            <legend className="block text-sm font-bold mb-2">Type d'incident (plusieurs choix possibles)</legend>
             {loading ? (
-              <p className="text-gray-500">Chargement des types d'incident...</p>
+              <p className="text-gray-500">Chargement des types d'incident…</p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {incidentTypes.map(type => (
-                  <label key={type} className="flex items-center p-2 border border-gray-100 rounded hover:bg-gray-50 cursor-pointer">
-                    <input type="checkbox" className="w-4 h-4 text-black focus:ring-black border-gray-300 rounded mr-2" checked={formData.types.includes(type)} onChange={() => handleTypeChange(type)} />
+                  <label key={type} className="flex items-center gap-2 p-3 min-h-11 border border-gray-100 rounded hover:bg-gray-50 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="w-5 h-5 accent-black rounded"
+                      checked={formData.types.includes(type)}
+                      onChange={() => handleTypeChange(type)}
+                    />
                     <span className="text-sm">{type}</span>
                   </label>
                 ))}
               </div>
             )}
+          </fieldset>
+
+          <div>
+            <label htmlFor="titre" className="block text-sm font-bold mb-1">Titre de l'intervention *</label>
+            <input
+              id="titre"
+              type="text"
+              placeholder="Ex : Vidéoprojecteur hors service"
+              aria-invalid={Boolean(erreurs.title)}
+              aria-describedby={erreurs.title ? 'erreur-title' : undefined}
+              className={classesChamp(Boolean(erreurs.title))}
+              value={formData.title}
+              onChange={e => setFormData({ ...formData, title: e.target.value })}
+            />
+            {messageErreur('title')}
           </div>
 
           <div>
-            <label className="block text-sm font-bold mb-1">Titre de l'intervention *</label>
-            <input type="text" required placeholder="Ex: Vidéoprojecteur hors service" className="w-full border-2 border-gray-200 rounded p-2 focus:border-black outline-none transition-colors" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
+            <label htmlFor="commentaires" className="block text-sm font-bold mb-1">Commentaires (détails) *</label>
+            <textarea
+              id="commentaires"
+              rows={4}
+              aria-invalid={Boolean(erreurs.comment)}
+              aria-describedby={erreurs.comment ? 'erreur-comment' : undefined}
+              className={classesChamp(Boolean(erreurs.comment))}
+              value={formData.comment}
+              onChange={e => setFormData({ ...formData, comment: e.target.value })}
+            />
+            {messageErreur('comment')}
           </div>
 
-          <div>
-            <label className="block text-sm font-bold mb-1">Commentaires (détails) *</label>
-            <textarea required rows={4} className="w-full border-2 border-gray-200 rounded p-2 focus:border-black outline-none transition-colors" value={formData.comment} onChange={e => setFormData({...formData, comment: e.target.value})}></textarea>
-          </div>
+          <PhotoUpload valeur={photo} onChange={setPhoto} />
+        </section>
 
-          <div>
-            <label className="block text-sm font-bold mb-1">Joindre une photo (optionnel, sera compressée)</label>
-            <div
-              className={`mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-md transition-colors ${dragActive ? 'border-black bg-gray-50' : 'border-gray-300'}`}
-              onDragOver={(e) => { e.preventDefault(); setDragActive(true) }}
-              onDragLeave={() => setDragActive(false)}
-              onDrop={handleDrop}
-            >
-              <div className="space-y-1 text-center">
-                <Icons.Upload />
-                <div className="flex text-sm text-gray-600 justify-center">
-                  <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-black hover:underline focus-within:outline-none">
-                    <span>{formData.photo ? `Fichier: ${formData.photo}` : 'Téléverser un fichier'}</span>
-                    <input id="file-upload" name="file-upload" type="file" className="sr-only" accept="image/*" onChange={handlePhotoUpload} />
-                  </label>
-                  {!formData.photo && <p className="pl-1">ou glisser-déposer</p>}
-                </div>
-                {!formData.photo && <p className="text-xs text-gray-500">PNG, JPG jusqu'à 10MB</p>}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+        <div className="bg-red-50 border-l-4 border-red-600 p-4 rounded">
           <label className="flex items-start cursor-pointer">
-            <input type="checkbox" className="mt-1 w-5 h-5 text-red-600 rounded border-red-300 focus:ring-red-500" checked={formData.risk} onChange={e => setFormData({...formData, risk: e.target.checked})} />
-            <div className="ml-3">
+            <input
+              type="checkbox"
+              className="mt-1 w-5 h-5 accent-red-600 rounded"
+              checked={formData.risk}
+              onChange={e => setFormData({ ...formData, risk: e.target.checked })}
+            />
+            <span className="ml-3">
               <span className="block text-red-800 font-bold">Risque d'accident ou de blessure</span>
-              <span className="block text-sm text-red-600 mt-1">Cochez cette case si la situation présente un danger immédiat pour les étudiants ou le personnel. Une alerte sera envoyée instantanément.</span>
-            </div>
+              <span className="block text-sm text-red-700 mt-1">
+                Cochez cette case si la situation présente un danger pour les étudiants ou le
+                personnel : une alerte est envoyée immédiatement aux responsables du site.
+                En cas d'urgence vitale, appelez les secours plutôt que d'utiliser ce formulaire.
+              </span>
+            </span>
           </label>
         </div>
 
-        <button type="submit" disabled={submitting} className="w-full bg-black text-white text-lg font-bold py-4 rounded hover:bg-gray-800 transition-colors shadow-lg active:translate-y-1 disabled:opacity-60">
+        <button
+          type="submit"
+          disabled={submitting}
+          className="w-full bg-black text-white text-lg font-bold py-4 rounded hover:bg-gray-800 transition-colors shadow-lg active:translate-y-1 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
+        >
           {submitting ? 'ENVOI…' : 'SOUMETTRE LA DEMANDE'}
         </button>
       </form>

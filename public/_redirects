@@ -1,0 +1,9 @@
+# Réécriture SPA (Netlify, Cloudflare Pages).
+#
+# Les URL comme /incident/12 ou /salle/B204 n'existent pas comme fichiers : elles
+# sont résolues par React Router dans le navigateur. Sans cette règle, un accès
+# direct — lien transmis, favori, ou scan d'un QR code — renvoie une erreur 404.
+#
+# Sur Vercel, utiliser vercel.json. Sur Apache, un .htaccess avec mod_rewrite.
+# Sur nginx : try_files $uri /index.html;
+/*    /index.html   200

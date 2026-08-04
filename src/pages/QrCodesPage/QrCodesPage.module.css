@@ -1,0 +1,48 @@
+/* Page de génération des affiches — mise en page de l'écran et de l'impression.
+ *
+ * Le style d'une affiche elle-même vit dans QrPoster.module.css. */
+
+.grilleAffiches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+  gap: 1.5rem;
+}
+
+/* À l'écran, l'aperçu de l'affiche générique est bridé en largeur : sinon il
+   s'étirerait sur toute la page et ne ressemblerait pas au rendu imprimé. */
+.apercuGenerique {
+  max-width: 22rem;
+}
+
+@media print {
+  /* Commandes, en-tête et pied de page n'ont rien à faire sur une affiche
+     destinée à être collée dans un couloir. */
+  .ecranSeulement,
+  :global(header),
+  :global(footer) {
+    display: none !important;
+  }
+
+  .grilleAffiches {
+    display: block;
+  }
+
+  /* L'aperçu reprend la pleine page à l'impression. */
+  .apercuGenerique {
+    max-width: none;
+  }
+
+  /* N'imprimer que le jeu demandé. L'attribut est posé sur le conteneur juste
+     avant l'appel à window.print(), puis retiré. Sans ce filtrage, imprimer
+     l'affiche générique sortirait aussi toutes les affiches de salle
+     sélectionnées, et inversement. */
+  :global([data-impression='generique']) .zoneSalles,
+  :global([data-impression='salles']) .zoneGenerique {
+    display: none !important;
+  }
+}
+
+@page {
+  size: A4;
+  margin: 12mm;
+}

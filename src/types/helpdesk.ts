@@ -1,70 +1,83 @@
 /**
- * État possible d'un ticket d'incident
- * - NOUVEAU: Ticket venant d'être créé
- * - EN_COURS: Ticket en cours de traitement
- * - EN_ATTENTE: Ticket en attente de réponse
- * - TERMINE: Ticket résolu
+ * État d'un ticket d'incident.
+ *
+ * Ces quatre clés sont aussi les valeurs du type énuméré `statut_ticket` en base :
+ * aucune conversion n'est nécessaire entre l'application et Postgres.
+ * Les libellés affichés sont définis dans `src/data/helpdesk.ts`.
+ *
+ * - `NOUVEAU` : déclaré, pas encore pris en charge
+ * - `EN_COURS` : un technicien travaille dessus
+ * - `EN_ATTENTE` : bloqué (pièce à commander, intervenant externe…)
+ * - `TERMINE` : résolu
  */
 export type Status = 'NOUVEAU' | 'EN_COURS' | 'EN_ATTENTE' | 'TERMINE'
 
-/**
- * Vue affichée dans l'interface principale
- * - USER_FORM: Formulaire de création d'incident (public)
- * - ADMIN_FORM: Formulaire d'administration
- * - ADMIN_LIST: Tableau de suivi des incidents
- * - ADMIN_STATS: Statistiques des incidents
- */
-export type View = 'USER_FORM' | 'ADMIN_FORM' | 'ADMIN_LIST' | 'ADMIN_STATS'
-
-/**
- * Champs d'un ticket modifiables par l'administrateur
- */
+/** Champs d'un ticket qu'un membre du personnel peut modifier. */
 export type TicketField = 'status' | 'handler' | 'adminComment'
 
 /**
- * Données d'un formulaire de création d'incident
+ * Données saisies dans le formulaire de déclaration d'incident.
+ *
+ * Nommé `TicketInput` et non `FormData` : ce dernier est un type natif du
+ * navigateur, et le masquer prête à confusion.
  */
-export interface FormData {
-  /** Nom complet du demandeur */
+export interface TicketInput {
+  /** Nom et prénom du déclarant */
   name: string
-  /** Email de contact du demandeur */
+  /** Adresse e-mail de contact */
   email: string
-  /** Salle/location de l'incident */
+  /** Nom de la salle concernée */
   room: string
-  /** Types d'incidents associés */
+  /** Types d'incident cochés (choix multiple) */
   types: string[]
-  /** Titre de l'incident */
+  /** Titre court de l'intervention */
   title: string
   /** Description détaillée */
   comment: string
-  /** Indique si c'est un incident urgent/dangereux */
+  /** Risque d'accident ou de blessure signalé */
   risk: boolean
-  /** Photo de l'incident (URL ou base64) */
-  photo: string | null
+  /** Chemin de la photo dans le bucket Storage, ou `null` */
+  photoPath: string | null
 }
 
-/**
- * Ticket d'incident complet avec métadonnées
- */
-export interface Ticket extends FormData {
-  /** Identifiant unique du ticket */
+/** Ticket d'incident tel que lu depuis la base. */
+export interface Ticket {
+  /** Identifiant du ticket, affiché au déclarant comme numéro de demande */
   id: string
-  /** Date de création du ticket */
-  date: string
-  /** État actuel du ticket */
+  /** Date et heure de déclaration (ISO 8601 complet) */
+  createdAt: string
+  /** Nom et prénom du déclarant */
+  name: string
+  /** Adresse e-mail de contact */
+  email: string
+  /** Nom de la salle concernée */
+  room: string
+  /** Types d'incident associés */
+  types: string[]
+  /** Titre de l'intervention */
+  title: string
+  /** Description détaillée */
+  comment: string
+  /** Risque d'accident ou de blessure signalé */
+  risk: boolean
+  /** Chemin de la photo dans le bucket Storage, ou `null` */
+  photoPath: string | null
+  /** État d'avancement */
   status: Status
-  /** Administrateur responsable du ticket */
+  /** Nom du technicien affecté, chaîne vide si non assigné */
   handler: string
-  /** Commentaire de l'administrateur */
+  /** Identifiant du technicien affecté, `null` si non assigné */
+  handlerId: string | null
+  /** Commentaire de suivi rédigé par le personnel */
   adminComment: string
+  /** Date de passage au statut `TERMINE`, `null` si non résolu */
+  resolvedAt: string | null
 }
 
-/**
- * Notification de toast (message temporaire)
- */
+/** Notification temporaire affichée en bas d'écran. */
 export interface ToastState {
-  /** Type de notification: danger (erreur) ou success (succès) */
+  /** `danger` pour une erreur, `success` pour une confirmation */
   type: 'danger' | 'success'
-  /** Texte du message */
+  /** Texte affiché */
   message: string
 }

@@ -1,138 +1,117 @@
 # CESI Helpdesk
 
-Application de déclaration et de suivi des incidents du campus CESI, réalisée avec React, TypeScript, Vite et Tailwind CSS.
+Application de signalement et de suivi des incidents du campus CESI.
+Un QR code est affiché dans chaque salle : le scanner ouvre un formulaire de
+déclaration avec la salle déjà renseignée. Le service technique suit et traite
+les demandes depuis un espace d'administration.
 
-Elle propose :
+## Ce que fait l'application
 
-- un formulaire de déclaration d'incident ;
-- une liste de suivi avec recherche et filtres ;
-- la modification du statut, du technicien et du commentaire administratif ;
-- des statistiques et un export CSV ;
-- Supabase pour le développement local ;
-- une API Express avec MySQL pour la production.
+**Pour la personne qui signale** — aucun compte nécessaire
 
-## Prérequis
+- scanner le QR code de la salle, ou choisir la salle dans une liste avec autocomplétion ;
+- décrire l'incident, cocher un ou plusieurs types, joindre une photo (compressée automatiquement) ;
+- signaler un risque d'accident : une alerte part immédiatement par e-mail ;
+- recevoir un numéro de demande à conserver.
 
-- Node.js 20 ou une version plus récente ;
-- npm ;
-- un projet Supabase pour le développement ;
-- une base MySQL pour le mode production.
+**Pour le service technique** — connexion requise
 
-## Installation
+- tableau de suivi avec un filtre par colonne, tri, et recherche ;
+- quatre niveaux d'avancement : nouveau, en cours, en attente, terminé ;
+- fiche complète de chaque incident, accessible par une URL partageable ;
+- affectation d'un traitant et commentaire de résolution ;
+- export Excel (`.xlsx`) de la sélection filtrée ;
+- statistiques : volume mensuel, répartition par type, délai moyen de résolution, salles les plus touchées ;
+- génération et impression des affiches à QR code, une par salle ;
+- récapitulatif hebdomadaire envoyé automatiquement le vendredi matin.
 
-```sh
-npm install
+## Stack technique
+
+| Domaine | Choix |
+| --- | --- |
+| Interface | React 19, TypeScript, Vite 8 |
+| Styles | Tailwind CSS v4 |
+| Navigation | React Router (URL réelles, liens partageables) |
+| Base de données | Supabase (PostgreSQL) avec Row Level Security |
+| Authentification | Supabase Auth, rôles `admin` et `technicien` |
+| Fichiers | Supabase Storage, bucket privé et URL signées |
+| E-mails | Supabase Edge Function (Deno) + relais SMTP |
+| Planification | `pg_cron` pour le récapitulatif hebdomadaire |
+
+L'application est un site statique : aucun serveur applicatif à maintenir.
+
+```mermaid
+flowchart LR
+    T["Téléphone<br/>(scan du QR code)"] --> H
+    N["Navigateur<br/>(service technique)"] --> H
+    H["Hébergement statique<br/>fichiers HTML/JS"] --> S
+    subgraph S["Supabase"]
+        DB[("PostgreSQL<br/>+ RLS")]
+        AUTH["Auth"]
+        ST["Storage<br/>(photos)"]
+        EF["Edge Function<br/>notifications"]
+        CRON["pg_cron<br/>vendredi 6 h UTC"]
+    end
+    DB -- "déclencheur risque" --> EF
+    CRON --> EF
+    EF --> SMTP["Relais SMTP CESI"]
+    SMTP --> MAIL["Responsables du site"]
 ```
 
-## Fichiers d'environnement
+## Démarrage rapide
 
-Les fichiers `.env.development` et `.env.production` contiennent des valeurs propres à chaque machine. Ils sont ignorés par Git et ne doivent pas être commités.
-
-### Développement avec Supabase
-
-Créez `.env.development` à partir de `.env.development.example` :
-
-```env
-VITE_SUPABASE_URL=https://votre-projet.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_votre_cle
+```bash
+npm install && npx supabase start && npm run db:reset && npm run dev
 ```
 
-- `VITE_SUPABASE_URL` : URL affichée dans les paramètres API du projet Supabase.
-- `VITE_SUPABASE_PUBLISHABLE_KEY` : clé publique/publishable du projet.
+Puis créez un compte administrateur :
 
-Les variables préfixées par `VITE_` sont intégrées au code envoyé au navigateur. N'y placez jamais une clé secrète Supabase, une clé `service_role` ou un mot de passe de base de données.
-
-Vite charge `.env.development` avec `npm run dev`. Un fichier portant uniquement le suffixe `.example` sert de modèle et n'est pas chargé automatiquement.
-
-### Production avec MySQL
-
-Créez `.env.production` à partir de `.env.production.example` :
-
-```env
-MYSQL_HOST=localhost
-MYSQL_PORT=3306
-MYSQL_USER=cesihelpdesk
-MYSQL_PASSWORD=change-me
-MYSQL_DATABASE=cesihelpdesk
-MYSQL_CONNECTION_LIMIT=10
-PORT=3000
+```bash
+bash scripts/creer-compte.sh admin@viacesi.fr 'VotreMotDePasse123!' "Votre Nom" admin
 ```
 
-- `MYSQL_HOST` : adresse du serveur MySQL.
-- `MYSQL_PORT` : port MySQL, généralement `3306`.
-- `MYSQL_USER` et `MYSQL_PASSWORD` : identifiants du compte MySQL.
-- `MYSQL_DATABASE` : nom de la base.
-- `MYSQL_CONNECTION_LIMIT` : nombre maximal de connexions du pool.
-- `PORT` : port HTTP de l'application Express.
+La procédure complète, y compris le rattachement à un projet Supabase hébergé,
+est décrite dans **[docs/01-installation.md](docs/01-installation.md)**.
 
-Ces variables sont lues uniquement par `server.mjs`. Sur un hébergeur, renseignez-les dans l'interface de configuration plutôt que dans un fichier versionné.
+## Commandes
 
-## Configurer Supabase
+| Commande | Rôle |
+| --- | --- |
+| `npm run dev` | serveur de développement (ajoutez `-- --host` pour tester depuis un téléphone) |
+| `npm run build` | vérification TypeScript et build de production dans `dist/` |
+| `npm run preview` | aperçu local du build |
+| `npm run lint` | analyse ESLint |
+| `npm run docs` | génère la référence d'API dans `docs/api/` |
+| `npm run db:start` | démarre la pile Supabase locale (Docker requis) |
+| `npm run db:reset` | recrée la base : migrations puis jeu de démonstration |
+| `npm run db:push` | applique les migrations au projet Supabase distant |
+| `npm run functions:serve` | sert les Edge Functions en local |
+| `bash scripts/verifier-rls.sh` | vérifie les règles de sécurité de la base |
+| `bash scripts/creer-compte.sh` | crée un compte du personnel |
 
-L'application utilise les tables suivantes du schéma `public` :
+## Documentation
 
-- `tickets` ;
-- `salles` ;
-- `categories_incident` ;
-- `ticket_categories` ;
-- `utilisateurs`.
+| Document | Contenu |
+| --- | --- |
+| [01 — Installation](docs/01-installation.md) | Installer le projet depuis zéro |
+| [02 — Architecture](docs/02-architecture.md) | Structure, choix techniques, ce qui n'a pas été fait |
+| [03 — Base de données](docs/03-base-de-donnees.md) | Schéma, sécurité RLS, stockage des photos |
+| [04 — Exploitation](docs/04-exploitation.md) | Ajouter une salle, créer un compte, dépanner |
+| [05 — Guide utilisateur](docs/05-guide-utilisateur.md) | Mode d'emploi, déclarant et administrateur |
+| [06 — Recette](docs/06-recette.md) | Cahier de tests et scénario de démonstration |
+| [Décisions (ADR)](docs/adr/) | Pourquoi chaque choix structurant a été fait |
 
-Après la création ou l'import des tables et des données, exécutez [`database/supabase-policies.sql`](database/supabase-policies.sql) dans le **SQL Editor** de Supabase.
+## État du projet
 
-Activer le RLS ne suffit pas : sans politique, l'API Supabase ne renvoie aucune ligne. Le script fournit les autorisations nécessaires à la clé publique pendant le développement.
+Toutes les fonctionnalités du cahier des charges sont implémentées et vérifiées
+en local. Deux points demandent une action de l'établissement avant la mise en
+service :
 
-> Les politiques fournies donnent un accès anonyme aux tickets. Elles sont destinées au développement et doivent être remplacées par des règles liées à l'authentification avant une mise en production publique.
+1. **Identifiants du relais SMTP.** Sans eux, les e-mails sont composés et
+   journalisés mais pas envoyés (`MAIL_TRANSPORT=console`). Le passage à l'envoi
+   réel ne demande aucune modification de code.
+2. **Adresse publique de l'application** (`VITE_PUBLIC_APP_URL`), nécessaire
+   avant d'imprimer les QR codes — sinon les affiches pointent vers `localhost`.
 
-Lancez ensuite l'application :
-
-```sh
-npm run dev
-```
-
-## Lancer la production avec MySQL
-
-1. Créez la base MySQL.
-2. Exécutez [`database/mysql.sql`](database/mysql.sql).
-3. Configurez `.env.production`.
-4. Construisez et démarrez l'application :
-
-```sh
-npm run build
-npm start
-```
-
-Express sert les fichiers générés dans `dist` et expose l'API `/api/tickets`. Les identifiants MySQL restent côté serveur et ne sont jamais envoyés au navigateur.
-
-## Commandes disponibles
-
-```sh
-npm run dev      # serveur Vite de développement avec Supabase
-npm run build    # vérification TypeScript et build de production
-npm start        # serveur Express/MySQL de production
-npm run preview  # aperçu local du build Vite
-npm run lint     # analyse ESLint
-```
-
-## Vérifications avant livraison
-
-```sh
-npm run lint
-npm run build
-```
-
-## Structure principale
-
-```text
-src/components/       composants React
-src/services/         accès aux données
-src/types/            types TypeScript
-database/             scripts SQL et politiques Supabase
-server.mjs            serveur Express de production
-```
-
-## Dépannage
-
-- **Variables Supabase requises** : vérifiez que le fichier s'appelle exactement `.env.development`, puis redémarrez Vite.
-- **Tableaux vides sans erreur** : vérifiez les politiques RLS des cinq tables et que l'URL pointe vers le bon projet Supabase.
-- **Erreur de colonne ou de relation** : vérifiez que le schéma importé correspond aux tables listées ci-dessus.
-- **Variables MySQL manquantes** : contrôlez `.env.production` ou les variables configurées chez l'hébergeur.
+Les limites connues et les pistes d'évolution sont recensées dans
+[docs/02-architecture.md](docs/02-architecture.md#ce-qui-na-pas-été-fait-et-pourquoi).

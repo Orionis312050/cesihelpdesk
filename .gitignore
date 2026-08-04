@@ -15,6 +15,17 @@ dist-ssr
 .env.development
 .env.production
 
+# Documentation d'API générée par TypeDoc (`npm run docs`).
+# La documentation écrite à la main vit dans docs/*.md et RESTE versionnée.
+docs/api
+
+# Supabase CLI
+supabase/.branches
+supabase/.temp
+supabase/.env
+# Secrets locaux des Edge Functions (le modèle .env.example reste versionné)
+supabase/functions/.env
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

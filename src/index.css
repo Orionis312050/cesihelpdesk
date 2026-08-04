@@ -1,6 +1,13 @@
 @import "tailwindcss";
 
 @theme {
+  /* Charte CESI. Déclarés ici comme tokens Tailwind v4 : ils génèrent
+     automatiquement les utilitaires `bg-cesi-jaune`, `text-cesi-noir`,
+     `border-cesi-jaune`… Ne jamais réécrire ces couleurs en dur dans le JSX. */
+  --color-cesi-jaune: #FBE800;
+  --color-cesi-noir: #1A1A1A;
+  --color-cesi-gris: #F3F4F6;
+
   --animate-slide-up: slide-up 0.25s ease-out;
   --animate-fade-in: fade-in 0.4s ease-out;
 
@@ -18,3 +25,6 @@
 body {
   margin: 0;
 }
+
+/* Le jaune CESI sur blanc a un contraste d'environ 1,2:1 : il ne sert JAMAIS de
+   couleur de texte sur fond clair, uniquement de fond avec du texte noir. */

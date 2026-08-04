@@ -1,165 +1,170 @@
-import { createClient } from '@supabase/supabase-js'
-import type { FormData, Status, Ticket, TicketField } from '../types/helpdesk'
-import { helpdeskDataService } from './helpdeskData'
+/**
+ * Service d'accès aux tickets d'incident.
+ *
+ * Deux chemins d'écriture bien distincts :
+ *
+ * - **Création** : passe par la fonction `creer_ticket()` en base. Le visiteur
+ *   anonyme n'a aucun droit direct sur la table `tickets` ; la fonction insère
+ *   le ticket et ses catégories dans une seule transaction et renvoie son
+ *   numéro. Voir `supabase/migrations/*_rpc_creer_ticket.sql`.
+ * - **Mise à jour** : requête directe, réservée au personnel connecté. Les
+ *   colonnes modifiables sont limitées côté base par un GRANT au niveau colonne :
+ *   même en forgeant une requête, on ne peut pas réécrire le nom du déclarant.
+ */
 
+import { supabase } from '../lib/supabase'
+import type { Status, Ticket, TicketField, TicketInput } from '../types/helpdesk'
+
+/** Ligne renvoyée par la vue enrichie (jointures salle, technicien, catégories). */
 type TicketRow = {
   id: number
+  created_at: string
   demandeur_nom: string
   demandeur_email: string
-  salle_id: number
   titre: string
   description: string
-  image_url: string | null
+  image_chemin: string | null
   risque_accident: boolean
-  statut: string
-  assigne_a_id: number | null
+  statut: Status
   commentaire_admin: string | null
-  created_at: string
+  resolu_le: string | null
+  assigne_a_id: string | null
+  salles: { nom: string } | null
+  utilisateurs: { nom_complet: string } | null
+  ticket_categories: { categories_incident: { label: string } | null }[]
 }
 
-type NamedRow = { id: number; nom: string }
-type CategoryRow = { id: number; label: string }
-type TicketCategoryRow = { ticket_id: number; category_id: number }
-type UserRow = { id: number; nom_complet: string }
+/**
+ * Sélection commune à toutes les lectures de tickets.
+ *
+ * Les jointures sont résolues par PostgREST en une seule requête, là où
+ * l'implémentation précédente chargeait cinq tables entières puis les
+ * recomposait en mémoire dans le navigateur.
+ */
+const SELECTION = `
+  id, created_at, demandeur_nom, demandeur_email, titre, description,
+  image_chemin, risque_accident, statut, commentaire_admin, resolu_le, assigne_a_id,
+  salles ( nom ),
+  utilisateurs ( nom_complet ),
+  ticket_categories ( categories_incident ( label ) )
+`
 
-const supabase = import.meta.env.DEV && import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-  ? createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY)
-  : null
+/** Convertit une ligne de base en objet métier. */
+const mapTicket = (row: TicketRow): Ticket => ({
+  id: String(row.id),
+  createdAt: row.created_at,
+  name: row.demandeur_nom,
+  email: row.demandeur_email,
+  room: row.salles?.nom ?? '',
+  types: row.ticket_categories
+    .map(lien => lien.categories_incident?.label)
+    .filter((label): label is string => Boolean(label))
+    .sort((a, b) => a.localeCompare(b, 'fr')),
+  title: row.titre,
+  comment: row.description,
+  risk: row.risque_accident,
+  photoPath: row.image_chemin,
+  status: row.statut,
+  handler: row.utilisateurs?.nom_complet ?? '',
+  handlerId: row.assigne_a_id,
+  adminComment: row.commentaire_admin ?? '',
+  resolvedAt: row.resolu_le,
+})
 
-const requireSupabase = () => {
-  if (!supabase) throw new Error('VITE_SUPABASE_URL et VITE_SUPABASE_PUBLISHABLE_KEY sont requis en développement.')
-  return supabase
-}
-
-const statusFromDatabase = (value: string): Status => {
-  const normalized = value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-  if (normalized === 'en cours') return 'EN_COURS'
-  if (normalized === 'en attente') return 'EN_ATTENTE'
-  if (normalized === 'termine') return 'TERMINE'
-  return 'NOUVEAU'
-}
-
-const statusToDatabase: Record<Status, string> = {
-  NOUVEAU: 'nouveau',
-  EN_COURS: 'en cours',
-  EN_ATTENTE: 'en attente',
-  TERMINE: 'terminé',
-}
-
-const loadTickets = async (): Promise<Ticket[]> => {
-  const client = requireSupabase()
-  const [ticketsResult, roomsResult, categoriesResult, linksResult, usersResult] = await Promise.all([
-    client.from('tickets').select('*').order('created_at', { ascending: false }),
-    client.from('salles').select('id, nom'),
-    client.from('categories_incident').select('id, label'),
-    client.from('ticket_categories').select('ticket_id, category_id'),
-    client.from('utilisateurs').select('id, nom_complet'),
-  ])
-
-  const error = ticketsResult.error || roomsResult.error || categoriesResult.error || linksResult.error || usersResult.error
-  if (error) throw error
-
-  const rooms = new Map((roomsResult.data as NamedRow[]).map(row => [row.id, row.nom]))
-  const categories = new Map((categoriesResult.data as CategoryRow[]).map(row => [row.id, row.label]))
-  const users = new Map((usersResult.data as UserRow[]).map(row => [row.id, row.nom_complet]))
-  const categoryIdsByTicket = new Map<number, number[]>()
-  for (const link of linksResult.data as TicketCategoryRow[]) {
-    categoryIdsByTicket.set(link.ticket_id, [...(categoryIdsByTicket.get(link.ticket_id) ?? []), link.category_id])
-  }
-
-  return (ticketsResult.data as TicketRow[]).map(row => ({
-    id: String(row.id),
-    date: row.created_at?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
-    name: row.demandeur_nom,
-    email: row.demandeur_email,
-    room: rooms.get(row.salle_id) ?? `Salle ${row.salle_id}`,
-    types: (categoryIdsByTicket.get(row.id) ?? []).map(id => categories.get(id)).filter((label): label is string => Boolean(label)),
-    title: row.titre,
-    comment: row.description,
-    risk: row.risque_accident,
-    photo: row.image_url,
-    status: statusFromDatabase(row.statut),
-    handler: row.assigne_a_id ? users.get(row.assigne_a_id) ?? '' : '',
-    adminComment: row.commentaire_admin ?? '',
-  }))
+/** Colonne de base correspondant à chaque champ modifiable. */
+const COLONNE_PAR_CHAMP: Record<TicketField, string> = {
+  status: 'statut',
+  handler: 'assigne_a_id',
+  adminComment: 'commentaire_admin',
 }
 
 export const ticketService = {
+  /**
+   * Charge tous les tickets visibles, du plus récent au plus ancien.
+   *
+   * Un visiteur non connecté reçoit une liste vide : les politiques RLS ne lui
+   * accordent aucun accès à la table.
+   *
+   * @returns Liste des tickets.
+   * @throws {Error} Si la requête échoue.
+   */
   async list(): Promise<Ticket[]> {
-    if (import.meta.env.DEV) return loadTickets()
+    const { data, error } = await supabase
+      .from('tickets')
+      .select(SELECTION)
+      .order('created_at', { ascending: false })
 
-    const response = await fetch('/api/tickets')
-    if (!response.ok) throw new Error('Impossible de charger les tickets.')
-    return response.json() as Promise<Ticket[]>
+    if (error) throw new Error(`Impossible de charger les incidents : ${error.message}`)
+    return (data as unknown as TicketRow[]).map(mapTicket)
   },
 
-  async create(form: FormData): Promise<Ticket> {
-    if (import.meta.env.DEV) {
-      const client = requireSupabase()
-      const [roomResult, categoriesResult] = await Promise.all([
-        client.from('salles').select('id').eq('nom', form.room).maybeSingle(),
-        client.from('categories_incident').select('id, label').in('label', form.types),
-      ])
-      if (roomResult.error) throw roomResult.error
-      if (categoriesResult.error) throw categoriesResult.error
-      if (!roomResult.data) throw new Error(`La salle « ${form.room} » n'existe pas dans Supabase.`)
+  /**
+   * Charge un ticket par son identifiant.
+   *
+   * @param id Identifiant du ticket.
+   * @returns Le ticket, ou `null` s'il n'existe pas ou n'est pas accessible.
+   * @throws {Error} Si la requête échoue.
+   */
+  async getById(id: string): Promise<Ticket | null> {
+    const { data, error } = await supabase
+      .from('tickets')
+      .select(SELECTION)
+      .eq('id', Number(id))
+      .maybeSingle()
 
-      const { data, error } = await client.from('tickets').insert({
-        demandeur_nom: form.name,
-        demandeur_email: form.email,
-        salle_id: roomResult.data.id,
+    if (error) throw new Error(`Impossible de charger l'incident : ${error.message}`)
+    return data ? mapTicket(data as unknown as TicketRow) : null
+  },
+
+  /**
+   * Déclare un nouvel incident.
+   *
+   * @param form Données du formulaire.
+   * @returns Le numéro de la demande créée, à afficher au déclarant.
+   * @throws {Error} Si la salle ou un type d'incident est inconnu, ou si un
+   *   champ obligatoire manque. Les messages proviennent de la base et sont
+   *   déjà rédigés en français.
+   *
+   * @example
+   * const numero = await ticketService.create({ name: 'Alex', ... })
+   * // '42'
+   */
+  async create(form: TicketInput): Promise<string> {
+    const { data, error } = await supabase.rpc('creer_ticket', {
+      payload: {
+        nom: form.name,
+        email: form.email,
+        salle: form.room,
         titre: form.title,
         description: form.comment,
-        image_url: form.photo || null,
-        risque_accident: form.risk,
-        statut: 'nouveau',
-      }).select('id').single()
-      if (error) throw error
-
-      const links = (categoriesResult.data as CategoryRow[]).map(category => ({ ticket_id: data.id, category_id: category.id }))
-      if (links.length) {
-        const { error: linkError } = await client.from('ticket_categories').insert(links)
-        if (linkError) throw linkError
-      }
-
-      // Clear cache after creating a ticket
-      helpdeskDataService.clearCache()
-
-      const tickets = await loadTickets()
-      const created = tickets.find(ticket => ticket.id === String(data.id))
-      if (!created) throw new Error('Le ticket a été créé mais ne peut pas être relu.')
-      return created
-    }
-
-    const response = await fetch('/api/tickets', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form),
+        risque: form.risk,
+        image_chemin: form.photoPath,
+        types: form.types,
+      },
     })
-    if (!response.ok) throw new Error('Impossible de créer le ticket.')
-    return response.json() as Promise<Ticket>
+
+    if (error) throw new Error(error.message || "Impossible d'enregistrer la demande.")
+    return String(data)
   },
 
+  /**
+   * Met à jour un champ modifiable d'un ticket.
+   *
+   * @param id Identifiant du ticket.
+   * @param field Champ à modifier.
+   * @param value Nouvelle valeur. Pour `handler`, l'identifiant du technicien
+   *   ou une chaîne vide pour désassigner.
+   * @throws {Error} Si la mise à jour est refusée.
+   */
   async update(id: string, field: TicketField, value: string): Promise<void> {
-    if (import.meta.env.DEV) {
-      const client = requireSupabase()
-      let update: Record<string, string | number | null>
-      if (field === 'status') {
-        update = { statut: statusToDatabase[value as Status] }
-      } else if (field === 'adminComment') {
-        update = { commentaire_admin: value }
-      } else {
-        const { data, error } = await client.from('utilisateurs').select('id').ilike('nom_complet', value).maybeSingle()
-        if (error) throw error
-        if (value && !data) throw new Error(`L'utilisateur « ${value} » n'existe pas dans Supabase.`)
-        update = { assigne_a_id: data?.id ?? null }
-      }
-      const { error } = await client.from('tickets').update(update).eq('id', Number(id))
-      if (error) throw error
-      return
-    }
+    const colonne = COLONNE_PAR_CHAMP[field]
+    const valeur = field === 'handler' ? (value || null) : value
 
-    const response = await fetch(`/api/tickets/${encodeURIComponent(id)}`, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ field, value }),
-    })
-    if (!response.ok) throw new Error('Impossible de mettre à jour le ticket.')
+    const { error } = await supabase
+      .from('tickets')
+      .update({ [colonne]: valeur })
+      .eq('id', Number(id))
+
+    if (error) throw new Error(`Impossible de mettre à jour l'incident : ${error.message}`)
   },
 }

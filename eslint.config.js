@@ -6,7 +6,17 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores([
+    'dist',
+    // Documentation d'API générée par TypeDoc.
+    'docs/api',
+    // Fichiers de travail écrits par la CLI Supabase.
+    'supabase/.temp',
+    // Edge Functions : code Deno, avec ses propres globales et ses imports par
+    // URL. Il est vérifié par `deno check`, pas par cette configuration ESLint
+    // qui cible le navigateur.
+    'supabase/functions',
+  ]),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

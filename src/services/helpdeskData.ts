@@ -1,119 +1,88 @@
 /**
- * Service de gestion des données du helpdesk (Supabase)
- * Gère le chargement des salles et types d'incidents avec système de cache de 5 minutes
- * 
- * Le service détecte automatiquement l'environnement:
- * - DEV: Requêtes directes à Supabase
- * - PROD: Requêtes via API backend
+ * Service de chargement des données de référence du helpdesk : salles et
+ * catégories d'incident.
+ *
+ * Ces deux listes changent très rarement et sont demandées à chaque ouverture du
+ * formulaire public : elles sont donc mises en cache pendant 5 minutes.
+ *
+ * Ce sont les deux seules tables lisibles sans être connecté — le formulaire de
+ * déclaration en a besoin avant toute authentification (voir les politiques RLS
+ * dans `docs/03-base-de-donnees.md`).
  */
 
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabase'
 
-/** Interface pour une ligne de table avec id et nom */
+/** Ligne d'une table de référence identifiée par un nom. */
 type NamedRow = { id: number; nom: string }
 
-/** Interface pour une catégorie d'incident */
+/** Ligne de la table des catégories d'incident. */
 type CategoryRow = { id: number; label: string }
 
-// Client Supabase initialisé seulement en développement
-const supabase = import.meta.env.DEV && import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-  ? createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY)
-  : null
-
-/**
- * Vérifie que Supabase est initialisé, sinon lance une erreur
- * @throws {Error} Si les variables d'environnement Supabase ne sont pas définies
- */
-const requireSupabase = () => {
-  if (!supabase) throw new Error('VITE_SUPABASE_URL et VITE_SUPABASE_PUBLISHABLE_KEY sont requis en développement.')
-  return supabase
-}
-
-// Système de cache pour les données
 let cachedRooms: string[] | null = null
 let cachedIncidentTypes: string[] | null = null
 let cacheTime = 0
-/** Durée du cache: 5 minutes */
+
+/** Durée de validité du cache, en millisecondes (5 minutes). */
 const CACHE_DURATION = 5 * 60 * 1000
 
-/**
- * Service pour récupérer les données du helpdesk
- */
+/** Indique si le cache est encore valide. */
+const isCacheFresh = () => Date.now() - cacheTime < CACHE_DURATION
+
 export const helpdeskDataService = {
   /**
-   * Récupère la liste des salles (locations) disponibles
-   * Les données sont mises en cache pendant 5 minutes
-   * 
-   * @returns {Promise<string[]>} Liste des noms de salles triées alphabétiquement
-   * @throws {Error} Si la requête Supabase échoue
-   * 
+   * Récupère la liste des salles, triée par ordre alphabétique.
+   * Le résultat est mis en cache pendant 5 minutes.
+   *
+   * @returns Liste des noms de salles.
+   * @throws {Error} Si la requête Supabase échoue.
+   *
    * @example
    * const rooms = await helpdeskDataService.getRooms()
-   * // ['Salle A', 'Salle B', 'Salle C']
+   * // ['A101', 'A102', 'Amphithéâtre Pascal']
    */
   async getRooms(): Promise<string[]> {
-    if (import.meta.env.DEV) {
-      // Retourne le cache s'il est encore valide
-      if (cachedRooms && Date.now() - cacheTime < CACHE_DURATION) {
-        return cachedRooms
-      }
+    if (cachedRooms && isCacheFresh()) return cachedRooms
 
-      const client = requireSupabase()
-      const { data, error } = await client.from('salles').select('id, nom').order('nom', { ascending: true })
-      if (error) throw error
+    const { data, error } = await supabase.from('salles').select('id, nom').order('nom', { ascending: true })
+    if (error) throw new Error(`Impossible de charger les salles : ${error.message}`)
 
-      cachedRooms = (data as NamedRow[]).map(row => row.nom)
-      cacheTime = Date.now()
-      return cachedRooms
-    }
-
-    const response = await fetch('/api/helpdesk/rooms')
-    if (!response.ok) throw new Error('Impossible de charger les salles.')
-    return response.json() as Promise<string[]>
+    cachedRooms = (data as NamedRow[]).map(row => row.nom)
+    cacheTime = Date.now()
+    return cachedRooms
   },
 
   /**
-   * Récupère la liste des types d'incidents disponibles
-   * Les données sont mises en cache pendant 5 minutes
-   * 
-   * @returns {Promise<string[]>} Liste des types d'incidents triés alphabétiquement
-   * @throws {Error} Si la requête Supabase échoue
-   * 
+   * Récupère la liste des types d'incident, triée par ordre alphabétique.
+   * Le résultat est mis en cache pendant 5 minutes.
+   *
+   * @returns Liste des libellés de catégories d'incident.
+   * @throws {Error} Si la requête Supabase échoue.
+   *
    * @example
    * const types = await helpdeskDataService.getIncidentTypes()
-   * // ['Électricité', 'Plomberie', 'Réseau']
+   * // ['Chauffage / Climatisation', 'Électricité', 'Réseau / Wi-Fi']
    */
   async getIncidentTypes(): Promise<string[]> {
-    if (import.meta.env.DEV) {
-      // Retourne le cache s'il est encore valide
-      if (cachedIncidentTypes && Date.now() - cacheTime < CACHE_DURATION) {
-        return cachedIncidentTypes
-      }
+    if (cachedIncidentTypes && isCacheFresh()) return cachedIncidentTypes
 
-      const client = requireSupabase()
-      const { data, error } = await client.from('categories_incident').select('id, label').order('label', { ascending: true })
-      if (error) throw error
+    const { data, error } = await supabase.from('categories_incident').select('id, label').order('label', { ascending: true })
+    if (error) throw new Error(`Impossible de charger les types d'incident : ${error.message}`)
 
-      cachedIncidentTypes = (data as CategoryRow[]).map(row => row.label)
-      cacheTime = Date.now()
-      return cachedIncidentTypes
-    }
-
-    const response = await fetch('/api/helpdesk/incident-types')
-    if (!response.ok) throw new Error('Impossible de charger les types d\'incident.')
-    return response.json() as Promise<string[]>
+    cachedIncidentTypes = (data as CategoryRow[]).map(row => row.label)
+    cacheTime = Date.now()
+    return cachedIncidentTypes
   },
 
   /**
-   * Vide le cache des salles et types d'incidents
-   * Utile après une création d'incident pour s'assurer des données fraîches
-   * 
+   * Vide le cache des salles et des types d'incident.
+   * À appeler après une modification des tables de référence.
+   *
    * @example
-   * await helpdeskDataService.createIncident(data)
-   * helpdeskDataService.clearCache() // Force le rechargement au prochain appel
+   * helpdeskDataService.clearCache() // force un rechargement au prochain appel
    */
   clearCache() {
     cachedRooms = null
     cachedIncidentTypes = null
-  }
+    cacheTime = 0
+  },
 }

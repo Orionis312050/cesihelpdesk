@@ -1,43 +1,77 @@
-import type { Dispatch, SetStateAction } from 'react'
-import type { View } from '../../../types/helpdesk'
+import { NavLink, useNavigate } from 'react-router'
+import { useAuth } from '../../../hooks/useAuth'
 import { Icons } from '../../ui/Icons/Icons'
 
-interface AppHeaderProps {
-  currentView: View
-  setCurrentView: Dispatch<SetStateAction<View>>
-}
+const lienClasses = ({ isActive }: { isActive: boolean }) =>
+  `flex items-center gap-2 px-3 py-2 rounded transition-colors min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cesi-jaune ${
+    isActive ? 'bg-white/20 font-bold' : 'hover:bg-white/10 text-gray-300'
+  }`
 
-export const AppHeader = ({ currentView, setCurrentView }: AppHeaderProps) => (
-  <header className="bg-black text-white sticky top-0 z-40 shadow-md">
-    <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-      <div className="flex items-center gap-4">
-        <div className="bg-[#FBE800] text-black font-black text-xl px-3 py-1 -skew-x-12 inline-block">CESI</div>
-        <span className="font-bold hidden sm:inline tracking-wide">HELP DESK</span>
+export const AppHeader = () => {
+  const { profil, deconnexion } = useAuth()
+  const navigate = useNavigate()
+
+  const seDeconnecter = async () => {
+    await deconnexion()
+    navigate('/signaler')
+  }
+
+  return (
+    <header className="bg-black text-white sticky top-0 z-40 shadow-md">
+      <div className="max-w-7xl mx-auto px-4 min-h-16 flex flex-wrap items-center justify-between gap-2 py-2">
+        <NavLink to="/signaler" className="flex items-center gap-4 rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cesi-jaune">
+          <span className="bg-cesi-jaune text-black font-black text-xl px-3 py-1 -skew-x-12 inline-block">CESI</span>
+          <span className="font-bold hidden sm:inline tracking-wide">HELP DESK</span>
+        </NavLink>
+
+        <nav aria-label="Navigation principale" className="flex items-center gap-1 sm:gap-2">
+          <NavLink to="/signaler" className={lienClasses}>
+            <Icons.Home /> <span className="hidden sm:inline">Signaler</span>
+          </NavLink>
+
+          {/* Les liens d'administration n'apparaissent qu'une fois connecté.
+              Ce masquage est cosmétique : ce sont les politiques RLS qui
+              protègent réellement les données. */}
+          {profil && (
+            <>
+              <span className="w-px h-6 bg-gray-600 mx-1" aria-hidden="true" />
+              <NavLink to="/suivi" className={lienClasses} title="Suivi des incidents">
+                <Icons.List /> <span className="hidden sm:inline">Suivi</span>
+              </NavLink>
+              <NavLink to="/statistiques" className={lienClasses} title="Statistiques">
+                <Icons.Chart /> <span className="hidden sm:inline">Stats</span>
+              </NavLink>
+              {profil.role === 'admin' && (
+                <NavLink to="/qr-codes" className={lienClasses} title="QR codes des salles">
+                  <Icons.QrCode /> <span className="hidden sm:inline">QR</span>
+                </NavLink>
+              )}
+            </>
+          )}
+        </nav>
+
+        <div className="flex items-center gap-2">
+          {profil ? (
+            <>
+              <span className="hidden md:inline text-sm text-gray-300 max-w-40 truncate" title={`${profil.nomComplet} — ${profil.role}`}>
+                {profil.nomComplet}
+              </span>
+              <button
+                type="button"
+                onClick={seDeconnecter}
+                title="Se déconnecter"
+                className="flex items-center gap-2 px-3 py-2 min-h-11 rounded text-gray-300 hover:bg-white/10 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cesi-jaune"
+              >
+                <Icons.Logout /> <span className="hidden lg:inline">Déconnexion</span>
+              </button>
+            </>
+          ) : (
+            <NavLink to="/connexion" className={lienClasses}>
+              <span className="text-sm">Connexion</span>
+            </NavLink>
+          )}
+        </div>
       </div>
-
-      <nav className="flex items-center gap-1 sm:gap-4">
-        <button
-          onClick={() => setCurrentView('USER_FORM')}
-          className={`flex items-center gap-2 px-3 py-2 rounded transition-colors ${currentView === 'USER_FORM' ? 'bg-white/20 font-bold' : 'hover:bg-white/10'}`}
-        >
-          <Icons.Home /> <span className="hidden sm:inline">Portail Utilisateur</span>
-        </button>
-        <div className="w-px h-6 bg-gray-600 mx-2"></div>
-        <button
-          onClick={() => setCurrentView('ADMIN_LIST')}
-          className={`flex items-center gap-2 px-3 py-2 rounded transition-colors ${currentView === 'ADMIN_LIST' ? 'bg-white/20 font-bold' : 'hover:bg-white/10 text-gray-300'}`}
-          title="Suivi des incidents"
-        >
-          <Icons.List /> <span className="hidden sm:inline">Suivi</span>
-        </button>
-        <button
-          onClick={() => setCurrentView('ADMIN_STATS')}
-          className={`flex items-center gap-2 px-3 py-2 rounded transition-colors ${currentView === 'ADMIN_STATS' ? 'bg-white/20 font-bold' : 'hover:bg-white/10 text-gray-300'}`}
-          title="Statistiques"
-        >
-          <Icons.Chart /> <span className="hidden sm:inline">Stats</span>
-        </button>
-      </nav>
-    </div>
-  </header>
-)
+    </header>
+  )
+}
