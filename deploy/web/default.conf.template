@@ -1,0 +1,107 @@
+# nginx de CESI Helpdesk : deux rôles, deux ports.
+#
+#   :80    → l'application (fichiers statiques de dist/, réécriture SPA)
+#   :8000  → filtre d'API devant la passerelle Supabase (Envoy, service api-gw)
+#
+# POURQUOI UN FILTRE : la passerelle Supabase sert AUSSI Studio — le tableau de
+# bord, avec un accès complet à la base — sur « / », protégé par un simple mot de
+# passe. Ici, seuls les préfixes utilisés par l'application passent ; tout le
+# reste répond 404. Studio reste accessible depuis la VM par tunnel SSH
+# (docs/07-autohebergement.md § Studio).
+#
+# Ce fichier est un gabarit : ${NPM_IP} est remplacé au démarrage du conteneur.
+# Les variables nginx ($host, $uri…) ne sont pas touchées : envsubst ne remplace
+# que les variables d'environnement définies.
+
+# Résolution DNS Docker à la requête, pas au démarrage : nginx démarre même si la
+# pile Supabase n'est pas encore prête, et suit ses redémarrages.
+resolver 127.0.0.11 valid=10s ipv6=off;
+
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+# En-tête X-Forwarded-Proto : celui posé par NPM (https) si présent, sinon le nôtre.
+map $http_x_forwarded_proto $proto_client {
+    default $http_x_forwarded_proto;
+    ''      $scheme;
+}
+
+# ---------------------------------------------------------------------------
+# Application — port 80 (publié en 8080)
+# ---------------------------------------------------------------------------
+server {
+    listen 80;
+    server_name _;
+
+    # Seul NPM (et la VM elle-même, via le pont Docker) peut parler à ce port.
+    allow ${NPM_IP};
+    allow 172.16.0.0/12;
+    deny all;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    gzip on;
+    gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+    gzip_min_length 1024;
+
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options DENY always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+
+    # Les fichiers générés par Vite portent un hachage dans leur nom : cache long.
+    location /assets/ {
+        expires 1y;
+        try_files $uri =404;
+    }
+
+    # Réécriture SPA : /incident/12 ou /salle/B204 n'existent pas comme fichiers,
+    # React Router les résout dans le navigateur. Sans cette règle, un scan de QR
+    # code ou un lien partagé renverrait 404.
+    location / {
+        expires -1;
+        try_files $uri $uri/ /index.html;
+    }
+}
+
+# ---------------------------------------------------------------------------
+# Filtre d'API — port 8000
+# ---------------------------------------------------------------------------
+server {
+    listen 8000;
+    server_name _;
+
+    allow ${NPM_IP};
+    allow 172.16.0.0/12;
+    deny all;
+
+    # Le bucket « incidents » refuse au-delà de 2 Mio côté Storage ; le défaut
+    # nginx (1 Mio) couperait avant. NPM doit avoir la même tolérance (onglet
+    # Advanced du proxy host : client_max_body_size 10m;).
+    client_max_body_size 10m;
+
+    # Variable → résolution DNS différée (voir `resolver` ci-dessus). Avec une
+    # variable et sans URI, nginx transmet l'URI de la requête telle quelle.
+    set $passerelle http://api-gw:8000;
+
+    location ~ ^/(auth|rest|storage|functions|realtime)/v1/ {
+        proxy_pass $passerelle;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $proto_client;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        # La passerelle laisse 150 s aux Edge Functions : on ne coupe pas avant.
+        proxy_read_timeout 150s;
+        proxy_buffering off;
+    }
+
+    # Tout le reste — Studio, /pg, /mcp, OpenAPI… — n'existe pas vu d'Internet.
+    location / {
+        return 404;
+    }
+}

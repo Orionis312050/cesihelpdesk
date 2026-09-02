@@ -1,0 +1,42 @@
+# nginx de CESI Helpdesk — deux rôles, deux ports publiés :
+#   8080 → l'application (fichiers statiques de ../../dist, réécriture SPA)
+#   8000 → filtre d'API devant la passerelle Supabase (voir default.conf.template)
+#
+# Le conteneur rejoint le réseau de la pile Supabase (`supabase_default`) pour
+# joindre la passerelle `api-gw` par son nom, sans qu'elle soit exposée à la VM.
+#
+# Démarrage : bash deploy/scripts/deployer-web.sh (construit dist/ puis `up -d`).
+# Variables : NPM_IP dans deploy/web/.env (défaut 10.0.50.21).
+
+name: helpdesk-web
+
+services:
+  web:
+    container_name: helpdesk-web
+    image: nginx:1.28-alpine
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+      - "8000:8000"
+    environment:
+      # Seule adresse autorisée à parler aux deux ports : Nginx Proxy Manager.
+      # Les ports publiés par Docker contournent ufw ; le filtrage se fait ici.
+      NPM_IP: ${NPM_IP:-10.0.50.21}
+    volumes:
+      - ../../dist:/usr/share/nginx/html:ro
+      # L'image nginx passe les fichiers de /etc/nginx/templates dans envsubst
+      # (variables d'environnement seulement, $host/$uri de nginx intacts).
+      - ./default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    networks:
+      - default
+      - supabase
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+networks:
+  supabase:
+    name: supabase_default
+    external: true

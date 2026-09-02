@@ -191,6 +191,14 @@ la sortie de `npm run functions:serve`, et une ligne est ajoutée dans
 
 ## Déploiement en production
 
+Deux façons de mettre l'application en service :
+
+- **Autohébergement** sur l'infrastructure de l'établissement — la pile Supabase
+  elle-même tourne en Docker sur une VM, publiée par Nginx Proxy Manager. C'est
+  la procédure de **[07 — Autohébergement](07-autohebergement.md)**, outillée par
+  le dossier `deploy/`.
+- **Front statique + projet Supabase cloud**, décrit ci-dessous.
+
 ```bash
 npm run build
 ```

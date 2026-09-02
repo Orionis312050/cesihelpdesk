@@ -36,3 +36,7 @@ supabase/functions/.env
 *.njsproj
 *.sln
 *.sw?
+
+# Autohébergement (deploy/) : les .env réels et la pile clonée restent hors Git
+deploy/**/.env
+deploy/supabase/

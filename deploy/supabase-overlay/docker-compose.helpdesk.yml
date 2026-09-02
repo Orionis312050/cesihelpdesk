@@ -1,0 +1,54 @@
+# Surcouche CESI Helpdesk pour la pile Supabase autohébergée.
+#
+# Ce fichier NE remplace PAS docker-compose.yml : il est empilé par-dessus via
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.helpdesk.yml
+# dans le .env de la pile — le mécanisme natif de Docker Compose, celui que
+# `sh run.sh config add` utilise aussi. Aucun fichier amont n'est modifié, ce qui
+# laisse `sh update.sh` faire les mises à jour de la pile sans conflit.
+#
+# Ce qu'il change :
+#
+# 1. La passerelle (Envoy, service `api-gw`) n'écoute plus que sur 127.0.0.1:8001.
+#    Elle sert aussi Studio — le tableau de bord, accès complet à la base — sur
+#    « / », protégé par un simple mot de passe. L'accès public passe donc par le
+#    nginx de deploy/web, qui ne laisse passer que /auth, /rest, /storage,
+#    /functions et /realtime. Studio reste joignable depuis la VM par tunnel SSH.
+#
+# 2. Supavisor (pooler) et Postgres ne sont exposés que sur 127.0.0.1 :
+#    5432/6543 pour le pooler, 5433 en direct pour les migrations.
+#
+# 3. La fonction « notifications » est montée depuis le dépôt de l'application
+#    (HELPDESK_REPO) — pas de copie à resynchroniser — et reçoit ses secrets.
+#    Le relais SMTP est celui de Supabase Auth : un seul jeu de variables.
+#
+# `!override` remplace la liste amont au lieu de la fusionner (Compose >= 2.24).
+
+services:
+  api-gw:
+    ports: !override
+      - "127.0.0.1:8001:8000"
+
+  supavisor:
+    ports: !override
+      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:6543:6543"
+
+  db:
+    ports:
+      - "127.0.0.1:5433:5432"
+
+  functions:
+    volumes:
+      - ${HELPDESK_REPO}/supabase/functions/notifications:/home/deno/functions/notifications:ro
+      - ${HELPDESK_REPO}/supabase/functions/_shared:/home/deno/functions/_shared:ro
+    environment:
+      FUNCTION_SECRET: ${FUNCTION_SECRET}
+      MAIL_TRANSPORT: ${MAIL_TRANSPORT:-console}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_ADMIN_EMAIL}
+      ALERT_RECIPIENTS: ${ALERT_RECIPIENTS}
+      WEEKLY_RECIPIENTS: ${WEEKLY_RECIPIENTS}
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL}

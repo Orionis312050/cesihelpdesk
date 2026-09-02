@@ -71,7 +71,10 @@ bash scripts/creer-compte.sh admin@viacesi.fr 'VotreMotDePasse123!' "Votre Nom" 
 ```
 
 La procédure complète, y compris le rattachement à un projet Supabase hébergé,
-est décrite dans **[docs/01-installation.md](docs/01-installation.md)**.
+est décrite dans **[docs/01-installation.md](docs/01-installation.md)**. Pour
+faire tourner l'application et sa pile Supabase sur les serveurs de
+l'établissement, voir **[docs/07-autohebergement.md](docs/07-autohebergement.md)**
+et l'outillage du dossier [`deploy/`](deploy/).
 
 ## Commandes
 
@@ -99,6 +102,7 @@ est décrite dans **[docs/01-installation.md](docs/01-installation.md)**.
 | [04 — Exploitation](docs/04-exploitation.md) | Ajouter une salle, créer un compte, dépanner |
 | [05 — Guide utilisateur](docs/05-guide-utilisateur.md) | Mode d'emploi, déclarant et administrateur |
 | [06 — Recette](docs/06-recette.md) | Cahier de tests et scénario de démonstration |
+| [07 — Autohébergement](docs/07-autohebergement.md) | Déployer sur l'infrastructure de l'établissement (Proxmox + Nginx Proxy Manager) |
 | [Décisions (ADR)](docs/adr/) | Pourquoi chaque choix structurant a été fait |
 
 ## État du projet

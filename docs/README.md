@@ -10,6 +10,7 @@
 | Vous exploitez l'application au quotidien | [04 — Exploitation](04-exploitation.md) |
 | Vous utilisez l'application | [05 — Guide utilisateur](05-guide-utilisateur.md) |
 | Vous devez vérifier ou démontrer le projet | [06 — Recette](06-recette.md) |
+| Vous déployez sur les serveurs de l'établissement | [07 — Autohébergement](07-autohebergement.md) |
 | Vous cherchez la signature d'une fonction | [Référence d'API](api/) — `npm run docs` |
 
 ## Contenu
@@ -26,6 +27,9 @@
   français, pour le déclarant et pour le service technique.
 - **[06 — Recette](06-recette.md)** — 60 contrôles, avec traçabilité vers chaque
   exigence du cahier des charges.
+- **[07 — Autohébergement](07-autohebergement.md)** — la pile Supabase et le
+  front sur une VM Proxmox, publiés par Nginx Proxy Manager : installation,
+  sécurité, sauvegardes, mises à jour. Outillé par le dossier `deploy/`.
 - **[adr/](adr/)** — onze fiches de décision : chaque choix structurant, les
   options écartées, et comment revenir en arrière.
 
