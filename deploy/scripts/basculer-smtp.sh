@@ -55,11 +55,17 @@ if [ ! -t 0 ]; then
   echo "Depuis votre poste : ssh -t <utilisateur>@<vm> \"cd /opt/cesihelpdesk && bash $0 …\"" >&2
   exit 1
 fi
+echo "Sous Windows, collez avec un clic droit (ou Ctrl+Maj+V) : Ctrl+V ne fonctionne"
+echo "pas dans une invite masquée, et Entrée enregistrerait alors une clé vide."
 printf 'Clé secrète / mot de passe SMTP (saisie masquée) : '
 read -rs motdepasse
 echo
-if [ -z "$motdepasse" ]; then
-  echo "Refusé : clé vide." >&2
+# Un terminal Windows envoie « \r » avec Entrée ; `read` le garde comme donnée.
+# Sans ce nettoyage, une saisie vide passerait pour une clé d'un caractère.
+motdepasse="${motdepasse//$'\r'/}"
+if [ "${#motdepasse}" -lt 16 ]; then
+  echo "Refusé : clé de ${#motdepasse} caractère(s). Une clé SMTP fait au moins 16 caractères" >&2
+  echo "        (Mailjet : 32). Le collage n'a probablement pas été pris en compte." >&2
   exit 1
 fi
 
