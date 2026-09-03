@@ -37,6 +37,7 @@ server {
 
     # Seul NPM (et la VM elle-même, via le pont Docker) peut parler à ce port.
     allow ${NPM_IP};
+    allow 127.0.0.1;        # healthcheck du conteneur (wget interne)
     allow 172.16.0.0/12;
     deny all;
 
@@ -74,6 +75,7 @@ server {
     server_name _;
 
     allow ${NPM_IP};
+    allow 127.0.0.1;        # healthcheck du conteneur (wget interne)
     allow 172.16.0.0/12;
     deny all;
 
