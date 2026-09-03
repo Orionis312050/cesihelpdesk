@@ -271,16 +271,29 @@ Un seul proxy host, `helpdesk.cesilarochelle.fr` :
 | --- | --- |
 | **Details** | Scheme `http`, Forward Hostname/IP `10.0.50.X`, Forward Port `8080`. *Websockets Support* coché. *Block Common Exploits* **décoché** — ses règles s'appliquent à tout l'hôte, API comprise, et bloquent certaines requêtes PostgREST légitimes |
 | **Custom locations** | cinq entrées, toutes en `http` vers `10.0.50.X` port **8000**, sans chemin dans le champ *Forward Hostname* : `/auth/` · `/rest/` · `/storage/` · `/functions/` · `/realtime/` |
-| **SSL** | *Request a new SSL Certificate* (Let's Encrypt), *Force SSL*, *HTTP/2 Support*, *HSTS Enabled* cochés |
-| **Advanced** | `client_max_body_size 10m;` |
+| **SSL** | *Request a new SSL Certificate* (Let's Encrypt) + *HTTP/2 Support*. **Ne cochez pas encore *Force SSL* ni *HSTS*** — voir l'encadré ci-dessous |
+| **Advanced** | rien à ajouter (vérifié sur NPM 2.13.5, qui pose déjà `client_max_body_size 0`) |
 
 NPM génère pour chaque *custom location* un `location /rest/ { proxy_pass
 http://10.0.50.X:8000; }` : l'URI arrive intacte au filtre nginx de la VM, qui ne
 laisse passer que ces cinq préfixes vers Envoy. Le reste (`/`, `/incident/12`,
 `/pg/`…) va au port 8080, donc à l'application.
 
-La ligne *Advanced* compte : le dépôt de photo est plafonné à 2 Mio côté
-Storage, mais le défaut de nginx (1 Mio) couperait avant.
+Rien à mettre dans *Advanced* : NPM 2.13.5 pose `client_max_body_size 0` dans sa
+configuration de base, un corps de 3 Mo traverse sans être coupé (vérifié). Le
+plafond effectif reste celui de Storage, 2 Mio par photo. Si une version future de
+NPM changeait ce défaut, un dépôt de photo échouerait en **413** : la parade est
+alors `client_max_body_size 10m;` dans cet onglet.
+
+> ### ⚠️ Ordre imposé : le certificat avant *Force SSL*
+>
+> Le challenge HTTP de Let's Encrypt n'a besoin que du **port 80**, déjà redirigé
+> vers NPM : le certificat s'émet donc immédiatement. Mais cocher *Force SSL*
+> avant que le **443** ne soit ouvert **rend le site injoignable** — le HTTP
+> répondrait par une redirection vers un HTTPS qui n'arrive nulle part.
+>
+> Séquence : (1) demander le certificat, HTTP toujours servi ; (2) faire ouvrir le
+> 443 sur le FortiGate ; (3) revenir cocher *Force SSL* et *HSTS Enabled*.
 
 > La documentation Supabase décrit plutôt un hôte dédié à l'API
 > (`api.<domaine>`). Ici un seul nom est disponible ; c'est pourquoi l'API vit
@@ -481,7 +494,8 @@ pour que la prochaine installation parte de la même version.
 | Écran « Configuration manquante » | `dist/` construit sans `.env.production` — relancez `deployer-web.sh` |
 | Erreurs CORS ou `Invalid API key` dans la console du navigateur | `VITE_SUPABASE_URL` ne correspond pas à `SUPABASE_PUBLIC_URL` (http/https, domaine), ou l'`ANON_KEY` a été régénérée après le build |
 | L'API répond **200** avec la page de l'application (HTML) | une *custom location* manque ou a un chemin dans *Forward Hostname* : les cinq préfixes doivent pointer nus vers le port 8000 |
-| Photo refusée, **413** | `client_max_body_size 10m;` absent de l'onglet Advanced |
+| Photo refusée, **413** | limite de corps de NPM : ajouter `client_max_body_size 10m;` dans l'onglet Advanced du proxy host |
+| Site injoignable juste après avoir activé le HTTPS | *Force SSL* coché alors que le 443 n'arrive pas sur NPM : décochez-le en attendant l'ouverture du port |
 | Requêtes PostgREST bloquées (**403** aléatoires sur `/rest/v1`) | *Block Common Exploits* coché sur l'hôte qui sert l'API |
 | `Signups not allowed` à la connexion | normal pour `/signup` ; si c'est au `/token`, le compte n'existe pas — § 7 |
 | Aucune ligne dans `email_log` après un incident à risque | `select * from net._http_response order by id desc limit 5;` montre la réponse de la fonction ; `public.configuration` vide → § 8 |
