@@ -87,7 +87,7 @@ fi
 titre "5. API à travers NPM et le filtre"
 c="$(code "https://$hote/rest/v1/salles?select=nom&limit=1" -H "apikey: $SB_ANON")"
 [ "$c" = "200" ] && reussite "GET /rest/v1/salles → 200 (référentiel public lisible)" || echec "GET /rest/v1/salles → $c — custom location /rest/ manquante dans NPM ?"
-c="$(code "https://$hote/auth/v1/health")"
+c="$(code "https://$hote/auth/v1/health" -H "apikey: $SB_ANON")"
 [ "$c" = "200" ] && reussite "GET /auth/v1/health → 200" || echec "GET /auth/v1/health → $c — custom location /auth/ manquante dans NPM ?"
 c="$(code -X POST "https://$hote/functions/v1/notifications" -H "Content-Type: application/json" -d '{"mode":"recap"}')"
 [ "$c" = "401" ] && reussite "POST /functions/v1/notifications sans secret → 401" || echec "POST /functions/v1/notifications sans secret → $c (attendu 401)"
