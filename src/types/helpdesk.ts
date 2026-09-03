@@ -74,6 +74,21 @@ export interface Ticket {
   resolvedAt: string | null
 }
 
+/** Salle du campus, telle que lue dans la table `salles`. */
+export interface Salle {
+  /** Identifiant technique, stable même après un renommage */
+  id: number
+  /** Nom affiché dans le formulaire et encodé dans les QR codes — unique */
+  nom: string
+  /** Bâtiment, chaîne vide si non renseigné */
+  batiment: string
+  /** Une salle désactivée disparaît du formulaire, ses incidents restent lisibles */
+  actif: boolean
+}
+
+/** Champs d'une salle saisis par un administrateur. */
+export type SalleInput = Pick<Salle, 'nom' | 'batiment'>
+
 /** Notification temporaire affichée en bas d'écran. */
 export interface ToastState {
   /** `danger` pour une erreur, `success` pour une confirmation */

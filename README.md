@@ -23,6 +23,7 @@ les demandes depuis un espace d'administration.
 - export Excel (`.xlsx`) de la sélection filtrée ;
 - statistiques : volume mensuel, répartition par type, délai moyen de résolution, salles les plus touchées ;
 - génération et impression des affiches à QR code, une par salle ;
+- gestion des salles depuis l'application : ajout, renommage, désactivation ;
 - récapitulatif hebdomadaire envoyé automatiquement le vendredi matin.
 
 ## Stack technique

@@ -74,6 +74,10 @@ contrainte `on delete restrict` sur `tickets.salle_id` empêche de supprimer une
 salle qui porte un historique. Une salle inactive disparaît du formulaire mais
 reste lisible sur les incidents passés.
 
+Les administrateurs gèrent les salles depuis l'écran `/salles` de l'application
+(politique `salles_gestion_admin`) ; le SQL reste possible en secours
+([04 — Exploitation](04-exploitation.md#gérer-les-salles)).
+
 ### `categories_incident`
 
 Types d'incident proposés en cases à cocher. Même logique d'activation.

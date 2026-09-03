@@ -65,6 +65,10 @@ export const router = createBrowserRouter([
             path: 'qr-codes',
             lazy: async () => ({ Component: (await import('../pages/QrCodesPage/QrCodesPage')).QrCodesPage }),
           },
+          {
+            path: 'salles',
+            lazy: async () => ({ Component: (await import('../pages/SallesPage/SallesPage')).SallesPage }),
+          },
         ],
       },
 

@@ -1,9 +1,10 @@
 /**
  * Service de chargement des données de référence du helpdesk : salles et
- * catégories d'incident.
+ * catégories d'incident actives, telles que proposées dans le formulaire.
  *
  * Ces deux listes changent très rarement et sont demandées à chaque ouverture du
- * formulaire public : elles sont donc mises en cache pendant 5 minutes.
+ * formulaire public : elles sont donc mises en cache pendant 5 minutes. La
+ * gestion des salles (écriture, salles inactives) est dans `salles.ts`.
  *
  * Ce sont les deux seules tables lisibles sans être connecté — le formulaire de
  * déclaration en a besoin avant toute authentification (voir les politiques RLS
@@ -43,7 +44,14 @@ export const helpdeskDataService = {
   async getRooms(): Promise<string[]> {
     if (cachedRooms && isCacheFresh()) return cachedRooms
 
-    const { data, error } = await supabase.from('salles').select('id, nom').order('nom', { ascending: true })
+    // Le filtre `actif` est explicite : pour un visiteur anonyme, la politique
+    // RLS l'applique déjà, mais le personnel connecté voit aussi les salles
+    // désactivées, qui ne doivent pas être proposées à la saisie.
+    const { data, error } = await supabase
+      .from('salles')
+      .select('id, nom')
+      .eq('actif', true)
+      .order('nom', { ascending: true })
     if (error) throw new Error(`Impossible de charger les salles : ${error.message}`)
 
     cachedRooms = (data as NamedRow[]).map(row => row.nom)
@@ -65,7 +73,11 @@ export const helpdeskDataService = {
   async getIncidentTypes(): Promise<string[]> {
     if (cachedIncidentTypes && isCacheFresh()) return cachedIncidentTypes
 
-    const { data, error } = await supabase.from('categories_incident').select('id, label').order('label', { ascending: true })
+    const { data, error } = await supabase
+      .from('categories_incident')
+      .select('id, label')
+      .eq('actif', true)
+      .order('label', { ascending: true })
     if (error) throw new Error(`Impossible de charger les types d'incident : ${error.message}`)
 
     cachedIncidentTypes = (data as CategoryRow[]).map(row => row.label)

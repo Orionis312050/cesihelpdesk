@@ -43,9 +43,9 @@ sur une machine vierge.
 | --- | --- | --- | :---: | --- |
 | R-201 | Non connecté, ouvrir `/suivi` directement | Redirection vers `/connexion` | | |
 | R-202 | Se connecter avec un mauvais mot de passe | « Adresse e-mail ou mot de passe incorrect. » Aucune redirection | | |
-| R-203 | Se connecter en `admin` | Retour sur `/suivi`. Le nom apparaît en haut à droite. Les menus Suivi, Stats et QR sont visibles | | |
+| R-203 | Se connecter en `admin` | Retour sur `/suivi`. Le nom apparaît en haut à droite. Les menus Suivi, Stats, QR et Salles sont visibles | | |
 | R-204 | Rafraîchir la page (F5) | La session est conservée. **Aucun affichage transitoire de la page de connexion** | | |
-| R-205 | Se connecter en `technicien` et ouvrir `/qr-codes` | Écran « Accès réservé ». Le menu QR n'est pas affiché | | |
+| R-205 | Se connecter en `technicien` et ouvrir `/qr-codes`, puis `/salles` | Écran « Accès réservé » sur les deux. Les menus QR et Salles ne sont pas affichés | | |
 | R-206 | Se déconnecter | Retour au formulaire public. Les menus d'administration disparaissent. `/suivi` redirige de nouveau vers la connexion | | |
 | R-207 | Désactiver un compte (`update utilisateurs set actif=false …`), puis s'y connecter | La connexion aboutit mais l'espace d'administration reste inaccessible | | |
 
@@ -185,6 +185,23 @@ cibles tactiles réelles, ni l'ouverture de l'appareil photo.
 | R-A06 | Audit axe DevTools sur `/signaler` et `/suivi` | Aucune violation « serious » ou « critical » | | |
 | R-A07 | Envoi en réseau dégradé (Slow 4G) | Le bouton passe en « ENVOI… ». En cas d'échec, **la saisie est conservée** | | |
 | R-A08 | `<html lang>` | Vaut `fr` | | |
+
+---
+
+## R-Bxx — Gestion des salles
+
+| ID | Étapes | Résultat attendu | OK/KO | Preuve |
+| --- | --- | --- | :---: | --- |
+| R-B01 | Ouvrir `/salles` en administrateur | La liste des salles s'affiche, triée par nom, avec bâtiment et état. Le compteur indique le nombre de salles | | |
+| R-B02 | Ajouter « B305 », bâtiment « Bâtiment B » | Notification « Salle « B305 » ajoutée. », la ligne apparaît. Dans une fenêtre privée, `/signaler` propose « B305 » dans le champ Salle | | |
+| R-B03 | Ajouter de nouveau « B305 » | Message « Une salle porte déjà ce nom. » sous le champ. Aucune ligne créée | | |
+| R-B04 | Ajouter avec un nom vide | Message « Indiquez le nom de la salle. » Aucune requête envoyée | | |
+| R-B05 | Renommer « B305 » en « B306 » | La liste affiche « B306 ». Un incident déclaré en B305 affiche désormais « B306 » dans le suivi | | |
+| R-B06 | Désactiver « B306 » | Badge « Désactivée », ligne grisée. `/signaler` ne la propose plus. Ses incidents restent visibles dans le suivi et les statistiques | | |
+| R-B07 | Ouvrir `/salle/B306` (affiche d'une salle désactivée), remplir, envoyer | Message « Cette salle n'existe pas. Choisissez-en une dans la liste. » sous le bandeau jaune. Aucune ligne créée | | |
+| R-B08 | Réactiver « B306 » | Badge « Active ». `/signaler` la propose de nouveau | | |
+| R-B09 | Taper « batiment b » sans accent dans la recherche | Seules les salles du bâtiment B restent affichées | | |
+| R-B10 | Se connecter en `technicien`, ouvrir `/nouveau` | Le champ Salle ne propose pas les salles désactivées | | |
 
 ---
 

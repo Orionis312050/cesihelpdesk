@@ -71,7 +71,8 @@ src/
 ├── services/              Accès aux données : tout ce qui touche au réseau
 │   ├── tickets.ts         Lecture, création (RPC) et mise à jour des incidents
 │   ├── utilisateurs.ts    Annuaire du personnel
-│   ├── helpdeskData.ts    Salles et catégories, avec cache de 5 minutes
+│   ├── helpdeskData.ts    Salles et catégories actives, avec cache de 5 minutes
+│   ├── salles.ts          Gestion des salles (ajout, renommage, activation)
 │   ├── storage.ts         Envoi des photos et URL signées
 │   └── excelExport.ts     Génération du fichier .xlsx
 ├── context/               État partagé (authentification, notifications, tickets)

@@ -188,6 +188,9 @@ export const UserForm = ({ onSubmit, isAdminContext, salleImposee }: UserFormPro
               <a href="/signaler" className="text-sm underline hover:no-underline mt-1 inline-block">
                 Ce n'est pas la bonne salle ?
               </a>
+              {/* Une affiche peut survivre à la désactivation de sa salle :
+                  l'erreur doit rester visible, sinon l'envoi échoue en silence. */}
+              {messageErreur('room')}
             </div>
           ) : (
             <div>

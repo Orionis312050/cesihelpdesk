@@ -108,8 +108,8 @@ déclaration est enregistrée. Donnez la salle et la date au service technique.
 Cliquez sur **Connexion** en haut à droite et saisissez vos identifiants
 professionnels. Votre compte est créé par un administrateur.
 
-Une fois connecté, trois menus supplémentaires apparaissent : **Suivi**,
-**Stats**, et **QR** (administrateurs seulement).
+Une fois connecté, des menus supplémentaires apparaissent : **Suivi** et
+**Stats**, puis **QR** et **Salles** pour les administrateurs.
 
 ## Lire le tableau de suivi
 
@@ -249,6 +249,29 @@ pas les affiches de salle, et inversement.
 Un bandeau rouge s'affiche si l'application n'est pas correctement configurée
 pour l'impression : dans ce cas, **n'imprimez pas**, les codes seraient
 inutilisables. Signalez-le à la personne qui gère l'application.
+
+## Gérer les salles
+
+*Administrateurs uniquement.* Menu **Salles**.
+
+La page liste toutes les salles proposées dans le formulaire de déclaration,
+avec leur bâtiment et leur état. Un champ de recherche filtre la liste.
+
+**Ajouter** — saisissez le nom (obligatoire, unique) et le bâtiment
+(facultatif), puis **Ajouter**. La salle est proposée aussitôt dans le
+formulaire. Pensez à imprimer son affiche depuis le menu **QR**.
+
+**Renommer** — bouton **Renommer** sur la ligne, modifiez, puis
+**Enregistrer** (Entrée valide, Échap annule). Les incidents passés affichent
+le nouveau nom. Une affiche déjà imprimée, en revanche, encode l'ancien nom :
+il faut la réimprimer.
+
+**Désactiver** — pour une salle désaffectée. Elle disparaît du formulaire ; ses
+incidents passés restent consultables dans le suivi et les statistiques. Le
+bouton **Réactiver** la remet en service.
+
+Il n'est pas possible de supprimer une salle : elle porte un historique
+d'incidents.
 
 ## Ce que je reçois par e-mail
 

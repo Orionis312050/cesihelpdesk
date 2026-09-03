@@ -1,7 +1,7 @@
 /**
  * Rôle d'un membre du personnel.
  *
- * - `admin` : accès complet (suivi, statistiques, QR codes, gestion des comptes)
+ * - `admin` : accès complet (suivi, statistiques, QR codes, gestion des salles et des comptes)
  * - `technicien` : suivi et traitement des incidents uniquement
  *
  * Le rôle est stocké dans `utilisateurs.role` et vérifié **côté base** par les

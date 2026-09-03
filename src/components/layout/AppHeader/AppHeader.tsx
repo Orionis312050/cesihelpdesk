@@ -42,9 +42,14 @@ export const AppHeader = () => {
                 <Icons.Chart /> <span className="hidden sm:inline">Stats</span>
               </NavLink>
               {profil.role === 'admin' && (
-                <NavLink to="/qr-codes" className={lienClasses} title="QR codes des salles">
-                  <Icons.QrCode /> <span className="hidden sm:inline">QR</span>
-                </NavLink>
+                <>
+                  <NavLink to="/qr-codes" className={lienClasses} title="QR codes des salles">
+                    <Icons.QrCode /> <span className="hidden sm:inline">QR</span>
+                  </NavLink>
+                  <NavLink to="/salles" className={lienClasses} title="Gestion des salles">
+                    <Icons.Building /> <span className="hidden sm:inline">Salles</span>
+                  </NavLink>
+                </>
               )}
             </>
           )}
