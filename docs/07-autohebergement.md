@@ -475,13 +475,14 @@ Ces variables sont **partagées** avec Supabase Auth : après bascule, les liens
 `.env`, refuse les valeurs invalides, puis redémarre `auth` et `functions`.
 
 **Quel relais ?** Le FortiGate du labo laisse sortir 587 et 465 ; Gmail,
-Microsoft 365 et Mailjet sont joignables depuis la VM.
+Microsoft 365 et Mailjet sont joignables depuis la VM. **Mailjet est le relais
+retenu pour cette instance.**
 
 | Relais | Réglages | Ce qu'il faut préparer |
 | --- | --- | --- |
-| **Gmail** — le plus simple | `smtp.gmail.com` port **465**, utilisateur et expéditeur = votre adresse Gmail | la validation en deux étapes sur le compte Google, puis un **mot de passe d'application** (<https://myaccount.google.com/apppasswords>). Aucune validation d'adresse ni de domaine, et SPF/DKIM/DMARC passent puisque Google envoie du Gmail. ~500 destinataires par jour |
-| **Mailjet** | `in-v3.mailjet.com` port 587, utilisateur = **API Key**, mot de passe = **Secret Key** | valider une adresse expéditrice (un clic sur un lien reçu dessus, pas de DNS). Un expéditeur en `@gmail.com` relayé par un tiers échoue le SPF de `gmail.com` : premier envoi possiblement en indésirable |
-| **Relais de l'établissement** | fourni par le service informatique | le SPF de `cesilarochelle.fr` inclut déjà `spf.mailjet.com` : une clé sur leur compte permettrait un expéditeur `helpdesk@cesilarochelle.fr`, sans toucher au code |
+| **Mailjet** — retenu ici | `in-v3.mailjet.com` port **587**, utilisateur = **API Key**, mot de passe = **Secret Key** (*Account → REST API → SMTP*) | valider une adresse expéditrice : un clic sur un lien reçu dessus, **aucun enregistrement DNS**. 200 envois/jour en offre gratuite. Un expéditeur en `@gmail.com` relayé par un tiers échoue le SPF de `gmail.com` : regardez le dossier indésirable au premier envoi |
+| **Gmail** | `smtp.gmail.com` port **465**, utilisateur et expéditeur = votre adresse Gmail | la validation en deux étapes sur le compte Google, puis un **mot de passe d'application** (<https://myaccount.google.com/apppasswords>). Aucune validation d'adresse ni de domaine, et SPF/DKIM/DMARC passent puisque Google envoie du Gmail. ~500 destinataires/jour |
+| **Relais de l'établissement** | fourni par le service informatique | le SPF de `cesilarochelle.fr` inclut déjà `spf.mailjet.com` : une clé sur leur compte permettrait un expéditeur `helpdesk@cesilarochelle.fr`, sans toucher au code — seules `SMTP_USER`, `SMTP_PASS` et `SMTP_ADMIN_EMAIL` changeraient |
 
 > ⚠️ **Deux pièges.** `SMTP_HOST=supabase-mail` dans le `.env` amont désigne un
 > service **absent** de la pile : le laisser tel quel fait échouer l'envoi sur une
