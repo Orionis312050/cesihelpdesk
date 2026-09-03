@@ -58,13 +58,25 @@ Quatre choix structurants :
 | --- | --- | --- |
 | DNS `helpdesk.cesilarochelle.fr` | existe : CNAME vers `cesilarochelle.fr` → `82.66.203.26` (zone chez OVH, `dns14.ovh.net`) | rien |
 | Port 80 public → NPM | `curl -sI http://helpdesk.cesilarochelle.fr/` répond `Server: openresty` : c'est NPM. Le challenge HTTP de Let's Encrypt passera | rien |
-| Port 443 public → NPM | aucune réponse TLS valide sur `82.66.203.26:443` ; le 80 est déjà redirigé | **à demander au gestionnaire du labo** : redirection du 443 vers `10.0.50.21` sur le **FortiGate** (`https://10.0.50.254:250`), même règle que celle qui existe pour le 80 |
+| Port 443 public → NPM | **déjà redirigé** : `https://helpdesk.cesilarochelle.fr` répond depuis Internet (vérifié le 2026-09-03 depuis un réseau extérieur au labo) | rien |
 | Adresse de la VM | `10.0.50.5` en DHCP, bail de 24 h renouvelé par `dhcpcd` qui redemande toujours la même adresse | fonctionne tel quel ; pour une garantie, demander une **réservation DHCP** sur la MAC de la VM au même gestionnaire |
 | Quota Proxmox | — | 4 vCPU, 8 Go de RAM, 60 Go de disque |
 | Accès | Proxmox `https://10.0.50.20:8006` (royaume `lldap`), NPM `http://10.0.50.21:81` | SSH vers la VM une fois créée |
 
-Sans le 443, tout se monte quand même jusqu'à l'étape 5 et le certificat peut
-être émis ; seule la consultation en HTTPS attend l'ouverture du port.
+> ### Diagnostiquer le 443 sans se tromper
+>
+> Un `openssl s_client` qui échoue sur le 443 **ne prouve pas** que le port est
+> fermé : tant qu'aucun certificat ne correspond au nom demandé, NPM refuse la
+> poignée de main TLS alors que la redirection fonctionne. Testez les deux
+> séparément — la connexion TCP d'abord, le TLS ensuite :
+>
+> ```bash
+> nc -z -w5 82.66.203.26 443 && echo "port ouvert"   # redirection en place ?
+> echo | openssl s_client -connect helpdesk.cesilarochelle.fr:443 -servername helpdesk.cesilarochelle.fr 2>/dev/null | openssl x509 -noout -subject -dates
+> ```
+>
+> Et vérifiez depuis un réseau **extérieur** au labo : depuis l'intérieur, une
+> route locale ou le NAT en épingle peuvent réussir là où un visiteur échouerait.
 
 Pour re-vérifier depuis n'importe quel poste :
 
