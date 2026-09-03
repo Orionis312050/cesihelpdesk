@@ -101,20 +101,36 @@ export const envoyer = async (message: Message): Promise<ResultatEnvoi> => {
     },
   })
 
+  // Un relais qui ne répond plus après la connexion laisserait `send()` en
+  // attente indéfiniment, et l'appel de la base avec lui. On borne l'attente :
+  // au-delà, c'est un échec journalisé, pas une requête qui pend.
+  let minuteur: number | undefined
+  const delai = new Promise<never>((_, rejeter) => {
+    minuteur = setTimeout(() => rejeter(new Error('Délai SMTP dépassé (30 s).')), 30_000)
+  })
+
   try {
-    await client.send({
-      from: expediteur,
-      to: message.destinataires,
-      subject: message.sujet,
-      content: message.texte,
-      html: message.html,
-    })
+    await Promise.race([
+      client.send({
+        from: expediteur,
+        to: message.destinataires,
+        subject: message.sujet,
+        content: message.texte,
+        html: message.html,
+      }),
+      delai,
+    ])
     return { statut: 'envoye' }
   } catch (cause) {
     return { statut: 'echec', erreur: cause instanceof Error ? cause.message : String(cause) }
   } finally {
-    // `close()` peut lever si la connexion est déjà tombée : sans ce filet, une
-    // panne réseau remonterait ici au lieu du vrai message d'erreur.
-    await client.close().catch(() => {})
+    clearTimeout(minuteur)
+    // `close()` peut lever, ou ne rien renvoyer du tout, si la connexion est
+    // déjà tombée. Sans ce filet, l'erreur de fermeture masquerait la vraie.
+    try {
+      await client.close()
+    } catch {
+      // connexion déjà fermée : rien à faire
+    }
   }
 }

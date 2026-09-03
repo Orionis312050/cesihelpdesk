@@ -480,7 +480,7 @@ retenu pour cette instance.**
 
 | Relais | Réglages | Ce qu'il faut préparer |
 | --- | --- | --- |
-| **Mailjet** — retenu ici | `in-v3.mailjet.com` port **587**, utilisateur = **API Key**, mot de passe = **Secret Key** (*Account → REST API → SMTP*) | valider une adresse expéditrice : un clic sur un lien reçu dessus, **aucun enregistrement DNS**. 200 envois/jour en offre gratuite. Un expéditeur en `@gmail.com` relayé par un tiers échoue le SPF de `gmail.com` : regardez le dossier indésirable au premier envoi |
+| **Mailjet** — retenu ici | `in-v3.mailjet.com` port **465** (TLS direct — **pas 587** : denomailer 1.6.0 plante sur STARTTLS et tue le worker), utilisateur = **API Key**, mot de passe = **Secret Key** (*Account → REST API → SMTP*) | valider une adresse expéditrice : un clic sur un lien reçu dessus, **aucun enregistrement DNS**. 200 envois/jour en offre gratuite. Un expéditeur en `@gmail.com` relayé par un tiers échoue le SPF de `gmail.com` : regardez le dossier indésirable au premier envoi |
 | **Gmail** | `smtp.gmail.com` port **465**, utilisateur et expéditeur = votre adresse Gmail | la validation en deux étapes sur le compte Google, puis un **mot de passe d'application** (<https://myaccount.google.com/apppasswords>). Aucune validation d'adresse ni de domaine, et SPF/DKIM/DMARC passent puisque Google envoie du Gmail. ~500 destinataires/jour |
 | **Relais de l'établissement** | fourni par le service informatique | le SPF de `cesilarochelle.fr` inclut déjà `spf.mailjet.com` : une clé sur leur compte permettrait un expéditeur `helpdesk@cesilarochelle.fr`, sans toucher au code — seules `SMTP_USER`, `SMTP_PASS` et `SMTP_ADMIN_EMAIL` changeraient |
 

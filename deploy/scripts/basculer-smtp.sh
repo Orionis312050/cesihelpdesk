@@ -5,7 +5,7 @@
 #   bash deploy/scripts/basculer-smtp.sh <hote> <port> <utilisateur> <expediteur> ["Nom affiché"]
 #
 # Exemple (Mailjet) :
-#   bash deploy/scripts/basculer-smtp.sh in-v3.mailjet.com 587 <API-Key> vous@example.com "CESI Helpdesk"
+#   bash deploy/scripts/basculer-smtp.sh in-v3.mailjet.com 465 <API-Key> vous@example.com "CESI Helpdesk"
 #
 # La clé secrète / mot de passe est demandée à l'invite, JAMAIS en argument :
 # un argument se retrouve dans l'historique du shell et dans `ps`.
@@ -27,7 +27,7 @@ nom="${5:-CESI Helpdesk}"
 
 if [ -z "$hote" ] || [ -z "$port" ] || [ -z "$utilisateur" ] || [ -z "$expediteur" ]; then
   echo "Usage : bash $0 <hote> <port> <utilisateur> <expediteur> [\"Nom affiché\"]" >&2
-  echo "Ex.   : bash $0 in-v3.mailjet.com 587 <API-Key> vous@example.com \"CESI Helpdesk\"" >&2
+  echo "Ex.   : bash $0 in-v3.mailjet.com 465 <API-Key> vous@example.com \"CESI Helpdesk\"" >&2
   exit 1
 fi
 
@@ -40,7 +40,9 @@ if [ "$hote" = "supabase-mail" ]; then
 fi
 case "$port" in
   25) echo "Refusé : le port 25 est presque toujours filtré et sans authentification. Utilisez 587 ou 465." >&2; exit 1 ;;
-  587|465) ;;
+  465) ;;
+  587) echo "Attention : 587 = STARTTLS, que denomailer 1.6.0 (fonction notifications) gère mal :" >&2
+       echo "           le worker est tué et l'alerte perdue sans trace. Préférez 465 si le relais l'offre." >&2 ;;
   *) echo "Port inhabituel ($port) : 587 = STARTTLS, 465 = TLS direct. Vérifiez avant de continuer." >&2 ;;
 esac
 case "$expediteur" in

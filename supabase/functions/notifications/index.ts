@@ -23,6 +23,17 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { envoyer, listerDestinataires } from '../_shared/courriel.ts'
 import { alerteUrgente, recapHebdomadaire, type TicketCourriel } from '../_shared/modeles.ts'
 
+// FILET DE SÉCURITÉ. denomailer peut rejeter une promesse en dehors de tout
+// `await` (erreur interne de connexion, vue sur STARTTLS). Sans ce filet, le
+// worker Deno est tué, la base reçoit 503, et l'alerte est perdue SANS trace
+// dans email_log — exactement ce que ce projet a corrigé une première fois.
+// Avec lui, l'erreur est journalisée et la requête aboutit à un « echec »
+// consigné.
+globalThis.addEventListener('unhandledrejection', evenement => {
+  console.error('[notifications] rejet non capturé :', evenement.reason)
+  evenement.preventDefault()
+})
+
 interface CorpsRequete {
   mode?: 'urgent' | 'recap'
   ticket_id?: number
