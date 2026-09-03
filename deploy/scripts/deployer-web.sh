@@ -71,4 +71,4 @@ echo "Front déployé. Depuis la VM :"
 echo "  curl -s http://127.0.0.1:8080/ | grep -o '<title>[^<]*'"
 echo "  curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8000/          # attendu : 404"
 echo
-echo "Étape suivante : les deux proxy hosts dans Nginx Proxy Manager (docs/07-autohebergement.md § 8)."
+echo "Étape suivante : le proxy host dans Nginx Proxy Manager (docs/07-autohebergement.md § 6)."

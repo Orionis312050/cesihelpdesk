@@ -108,10 +108,24 @@ URL* : l'ISO `debian-13.x-amd64-netinst.iso` depuis
 | Memory | 8192 Mo |
 | Network | Bridge `vmbr0`, modèle `VirtIO` |
 
-**Installation Debian.** Nom d'hôte `helpdesk`, un utilisateur non-root (ex.
-`admin`), partitionnement guidé sur tout le disque. À la sélection des logiciels :
+**Installation Debian.** Nom d'hôte `helpdesk`, domaine vide, langue *English*,
+pays *France* (locale `en_US.UTF-8`), clavier *American English* — voir ci-dessous.
+
+Au moment des comptes : **laissez le mot de passe root vide**. Debian verrouille
+alors le compte root et place l'utilisateur créé ensuite dans le groupe `sudo` —
+c'est ce qu'attendent les scripts (`sudo bash deploy/scripts/installer-vm.sh`).
+
+Pour le nom d'utilisateur, **`admin` est refusé** : Debian le réserve pour un
+groupe système. Prenez `sysadmin` ou votre prénom ; c'est le `<utilisateur>` de
+toutes les commandes `ssh` de ce document.
+
+Partitionnement guidé sur tout le disque. À la sélection des logiciels :
 **décochez l'environnement de bureau**, cochez *serveur SSH* et *utilitaires
-usuels du système*.
+usuels du système*. Gardez le **clavier américain** proposé par défaut : la console
+noVNC de Proxmox transmet mal Maj et AltGr, un clavier français y rend les chiffres
+inaccessibles. Choisissez donc un mot de passe **sans caractère AltGr** (`@`, `#`, `\`…)
+et sans lettre parmi `a q z w m` si vous tapez sur un AZERTY — sinon il ne correspondra
+pas à ce que vous croyez avoir saisi. Vous le remplacerez en SSH juste après.
 
 **Adresse IP fixe.** NPM doit viser une adresse stable. Soit une réservation DHCP
 sur le routeur du lab, soit une IP statique dans `/etc/network/interfaces` :
@@ -120,20 +134,20 @@ sur le routeur du lab, soit une IP statique dans `/etc/network/interfaces` :
 auto ens18
 iface ens18 inet static
     address 10.0.50.<X>/24
-    gateway 10.0.50.1
+    gateway 10.0.50.254
     dns-nameservers 10.0.50.254
 ```
 
 Notez cette adresse : elle est appelée `10.0.50.X` dans tout le document.
 
 **Vérification :** l'onglet *Summary* de la VM affiche son IP (c'est l'agent QEMU
-qui la remonte, il est installé à l'étape suivante) et `ssh admin@10.0.50.X`
+qui la remonte, il est installé à l'étape suivante) et `ssh <utilisateur>@10.0.50.X`
 répond.
 
 ## 2. Préparer la VM
 
 ```bash
-ssh admin@10.0.50.X
+ssh <utilisateur>@10.0.50.X
 sudo apt-get install -y git
 sudo git clone <url-du-depot> /opt/cesihelpdesk && sudo chown -R "$USER" /opt/cesihelpdesk
 cd /opt/cesihelpdesk
@@ -344,7 +358,7 @@ traitement côté admin.
 Le tableau de bord n'est pas exposé sur Internet. Depuis votre poste :
 
 ```bash
-ssh -L 8001:127.0.0.1:8001 admin@10.0.50.X
+ssh -L 8001:127.0.0.1:8001 <utilisateur>@10.0.50.X
 ```
 
 puis <http://localhost:8001>. Identifiants : `grep DASHBOARD /opt/supabase/.env`

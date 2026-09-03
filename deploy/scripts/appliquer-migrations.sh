@@ -43,8 +43,8 @@ storage_pret || { echo "storage.buckets toujours absent : la pile est-elle déma
 echo "→ Migrations (supabase/migrations) via la CLI"
 cd "$HELPDESK_REPO"
 # Mot de passe hexadécimal (généré par generate-keys.sh) : rien à encoder dans l'URL.
-npx --yes supabase@2 db push --skip-vault \
-  --db-url "postgresql://postgres:${POSTGRES_PASSWORD}@127.0.0.1:5433/postgres"
+npx --yes supabase@2 db push --yes --skip-vault \
+  --db-url "postgresql://postgres:${POSTGRES_PASSWORD}@127.0.0.1:5433/postgres?sslmode=disable"
 
 if [ "$demo" -eq 1 ]; then
   echo "→ Jeu de démonstration complet (salles, catégories, 12 incidents)"

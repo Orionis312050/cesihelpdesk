@@ -65,4 +65,4 @@ echo "  Compose : $(docker compose version --short)"
 echo "  Node    : $(node --version)"
 echo
 echo "Étape suivante : cloner le dépôt dans /opt/cesihelpdesk puis"
-echo "  bash deploy/scripts/installer-supabase.sh <domaine-app> <domaine-api>"
+echo "  bash deploy/scripts/installer-supabase.sh"
