@@ -68,10 +68,26 @@ export const envoyer = async (message: Message): Promise<ResultatEnvoi> => {
   const port = Number(secret('SMTP_PORT', '587'))
   const utilisateur = secret('SMTP_USER')
   const motDePasse = secret('SMTP_PASSWORD')
-  const expediteur = secret('SMTP_FROM', utilisateur)
+  const adresseExpediteur = secret('SMTP_FROM', utilisateur)
+
+  // Nom affiché : une alerte « risque d'accident » doit être identifiable d'un
+  // coup d'œil dans une boîte encombrée. Sans ce nom, seule l'adresse technique
+  // du relais s'affiche.
+  const nomExpediteur = secret('SMTP_SENDER_NAME')
+  const expediteur = nomExpediteur ? `${nomExpediteur} <${adresseExpediteur}>` : adresseExpediteur
 
   if (!hote || !utilisateur || !motDePasse) {
     return { statut: 'echec', erreur: 'Transport SMTP demandé mais SMTP_HOST / SMTP_USER / SMTP_PASSWORD manquent.' }
+  }
+
+  // `supabase-mail` est le service factice du .env amont de la pile self-hosted :
+  // la variable existe, le conteneur non. Sans ce contrôle, l'échec remonte sous
+  // forme d'erreur de résolution DNS, difficile à rattacher à sa cause.
+  if (hote === 'supabase-mail') {
+    return {
+      statut: 'echec',
+      erreur: "SMTP_HOST vaut « supabase-mail » : service inexistant dans la pile autohébergée. Lancez deploy/scripts/basculer-smtp.sh.",
+    }
   }
 
   const client = new SMTPClient({

@@ -458,24 +458,41 @@ cd /opt/supabase && docker compose restart functions   # si supabase/functions/ 
 
 ### Passer aux e-mails réels
 
-Dans `/opt/supabase/.env`, les variables SMTP sont **partagées** entre Supabase
-Auth (liens de récupération) et la fonction « notifications » :
+Deux scripts font tout le travail. Ne modifiez pas `/opt/supabase/.env` à la
+main : le mot de passe s'y retrouverait dans l'historique du shell.
 
-```env
-SMTP_HOST=<smtp.cesi.fr>
-SMTP_PORT=587
-SMTP_USER=<compte-de-service>
-SMTP_PASS=<mot-de-passe>
-SMTP_ADMIN_EMAIL=helpdesk@cesi.fr
-SMTP_SENDER_NAME=CESI Helpdesk
-MAIL_TRANSPORT=smtp
-ALERT_RECIPIENTS=securite@cesi.fr,services-generaux@cesi.fr
-WEEKLY_RECIPIENTS=services-generaux@cesi.fr
+```bash
+# 1. Bascule (la clé est demandée à l'invite, jamais en argument)
+ssh -t <utilisateur>@10.0.50.X "cd /opt/cesihelpdesk && \
+  bash deploy/scripts/basculer-smtp.sh <hote> <port> <utilisateur> <expediteur> 'CESI Helpdesk'"
+
+# 2. Contrôle du transport, vers UNE adresse à vous
+bash deploy/scripts/tester-smtp.sh <votre-adresse>
 ```
 
-puis `cd /opt/supabase && docker compose up -d auth functions`, et
-`bash deploy/scripts/configurer-notifications.sh --tester` : `email_log.statut`
-doit passer à `envoye`.
+Ces variables sont **partagées** avec Supabase Auth : après bascule, les liens
+« mot de passe oublié » fonctionnent aussi. `basculer-smtp.sh` sauvegarde le
+`.env`, refuse les valeurs invalides, puis redémarre `auth` et `functions`.
+
+**Quel relais ?** Le FortiGate du labo laisse sortir 587 et 465 ; Gmail,
+Microsoft 365 et Mailjet sont joignables depuis la VM.
+
+| Relais | Réglages | Ce qu'il faut préparer |
+| --- | --- | --- |
+| **Gmail** — le plus simple | `smtp.gmail.com` port **465**, utilisateur et expéditeur = votre adresse Gmail | la validation en deux étapes sur le compte Google, puis un **mot de passe d'application** (<https://myaccount.google.com/apppasswords>). Aucune validation d'adresse ni de domaine, et SPF/DKIM/DMARC passent puisque Google envoie du Gmail. ~500 destinataires par jour |
+| **Mailjet** | `in-v3.mailjet.com` port 587, utilisateur = **API Key**, mot de passe = **Secret Key** | valider une adresse expéditrice (un clic sur un lien reçu dessus, pas de DNS). Un expéditeur en `@gmail.com` relayé par un tiers échoue le SPF de `gmail.com` : premier envoi possiblement en indésirable |
+| **Relais de l'établissement** | fourni par le service informatique | le SPF de `cesilarochelle.fr` inclut déjà `spf.mailjet.com` : une clé sur leur compte permettrait un expéditeur `helpdesk@cesilarochelle.fr`, sans toucher au code |
+
+> ⚠️ **Deux pièges.** `SMTP_HOST=supabase-mail` dans le `.env` amont désigne un
+> service **absent** de la pile : le laisser tel quel fait échouer l'envoi sur une
+> résolution DNS (le code et les scripts refusent maintenant cette valeur). Et
+> `email_log.statut = 'envoye'` signifie « **accepté par le relais** », pas
+> « distribué » : un rebond apparaît chez le relais, jamais dans la base.
+
+**Changer les destinataires** — `ALERT_RECIPIENTS` (alerte immédiate) et
+`WEEKLY_RECIPIENTS` (récapitulatif), séparés par des virgules, dans
+`/opt/supabase/.env` ; puis `docker compose up -d functions`. Pris en compte au
+prochain envoi.
 
 ### Mettre à jour la pile Supabase
 
