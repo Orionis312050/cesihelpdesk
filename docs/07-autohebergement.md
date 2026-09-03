@@ -58,7 +58,8 @@ Quatre choix structurants :
 | --- | --- | --- |
 | DNS `helpdesk.cesilarochelle.fr` | existe : CNAME vers `cesilarochelle.fr` → `82.66.203.26` (zone chez OVH, `dns14.ovh.net`) | rien |
 | Port 80 public → NPM | `curl -sI http://helpdesk.cesilarochelle.fr/` répond `Server: openresty` : c'est NPM. Le challenge HTTP de Let's Encrypt passera | rien |
-| Port 443 public → NPM | aucune réponse TLS valide sur `82.66.203.26:443` | **faire rediriger 443 vers `10.0.50.21`** sur le routeur du lab, et vérifier que le conteneur NPM publie bien `443` (`docker ps` sur `10.0.50.21` : `0.0.0.0:443->443`) |
+| Port 443 public → NPM | aucune réponse TLS valide sur `82.66.203.26:443` ; le 80 est déjà redirigé | **à demander au gestionnaire du labo** : redirection du 443 vers `10.0.50.21` sur le **FortiGate** (`https://10.0.50.254:250`), même règle que celle qui existe pour le 80 |
+| Adresse de la VM | `10.0.50.5` en DHCP, bail de 24 h renouvelé par `dhcpcd` qui redemande toujours la même adresse | fonctionne tel quel ; pour une garantie, demander une **réservation DHCP** sur la MAC de la VM au même gestionnaire |
 | Quota Proxmox | — | 4 vCPU, 8 Go de RAM, 60 Go de disque |
 | Accès | Proxmox `https://10.0.50.20:8006` (royaume `lldap`), NPM `http://10.0.50.21:81` | SSH vers la VM une fois créée |
 
@@ -127,8 +128,16 @@ inaccessibles. Choisissez donc un mot de passe **sans caractère AltGr** (`@`, `
 et sans lettre parmi `a q z w m` si vous tapez sur un AZERTY — sinon il ne correspondra
 pas à ce que vous croyez avoir saisi. Vous le remplacerez en SSH juste après.
 
-**Adresse IP fixe.** NPM doit viser une adresse stable. Soit une réservation DHCP
-sur le routeur du lab, soit une IP statique dans `/etc/network/interfaces` :
+**Adresse IP.** NPM doit viser une adresse stable. En DHCP, `dhcpcd` redemande à
+chaque renouvellement l'adresse qu'il avait déjà : elle ne bouge donc pas en
+pratique tant que la VM tourne, et c'est suffisant pour démarrer. Pour une
+garantie, deux voies — une **réservation DHCP** sur le FortiGate du labo (à
+demander au gestionnaire), ou une **IP statique** posée ici :
+
+> ⚠️ Une IP statique doit être **hors du pool DHCP** du FortiGate. Ce pool n'est
+> pas lisible sans accès à l'équipement : choisir une adresse au hasard risque un
+> conflit le jour où le serveur DHCP l'attribue à une autre machine. Sans cette
+> information, préférez le DHCP ou la réservation.
 
 ```text
 auto ens18
