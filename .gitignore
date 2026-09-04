@@ -18,6 +18,11 @@ dist-ssr
 # Documentation d'API générée par TypeDoc (`npm run docs`).
 # La documentation écrite à la main vit dans docs/*.md et RESTE versionnée.
 docs/api
+# Exports d'une fiche Markdown (PDF, Word, HTML d'impression) : régénérables
+# à la demande, et sans intérêt en binaire sur un dépôt public.
+docs/*.pdf
+docs/*.docx
+docs/*.print.html
 
 # Supabase CLI
 supabase/.branches
