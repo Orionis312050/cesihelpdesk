@@ -11,14 +11,16 @@
  *
  * Les écritures sont réservées aux administrateurs par la politique
  * `utilisateurs_gestion_admin`, et limitées aux colonnes `nom_complet`, `role`
- * et `actif` par un GRANT au niveau colonne. Ni création ni suppression :
- * l'identité vit dans `auth.users`, hors de portée du navigateur (voir
- * `deploy/scripts/creer-compte-admin.sh`), et un compte porte l'historique des
- * incidents qu'il a traités.
+ * et `actif` par un GRANT au niveau colonne. Aucune suppression : un compte
+ * porte l'historique des incidents qu'il a traités, on le désactive.
+ *
+ * La création, elle, ne passe pas par cette table : l'identité vit dans
+ * `auth.users`, hors de portée du navigateur. Elle passe par la fonction Edge
+ * « comptes », seule détentrice de la clé de service (`inviter` ci-dessous).
  */
 
 import { supabase } from '../lib/supabase'
-import type { Profil, Role } from '../types/auth'
+import type { InvitationInput, Profil, Role } from '../types/auth'
 
 type UtilisateurRow = {
   id: string
@@ -51,6 +53,36 @@ const messageErreur = (error: { code?: string; message: string }, repli: string)
   if (error.code === 'P0001') return error.message
   if (error.code === '42501') return `${repli} : cette modification n'est pas autorisée depuis l'application.`
   return `${repli} : ${error.message}`
+}
+
+/** Réponse de la fonction Edge « comptes » : un lien, ou une explication. */
+type ReponseComptes = { lien?: string; erreur?: string }
+
+/**
+ * Appelle la fonction Edge « comptes » et rend le lien qu'elle a fabriqué.
+ *
+ * `functions.invoke` transmet automatiquement le jeton de la session en cours :
+ * c'est lui que la fonction contrôle avant d'accepter quoi que ce soit.
+ *
+ * Sur une réponse d'erreur, ce client range le corps HTTP dans `error.context`
+ * plutôt que dans le message — sans le relire, on perdrait l'explication
+ * fournie par la fonction (« adresse déjà utilisée », « compte désactivé »…)
+ * au profit d'un « Edge Function returned a non-2xx status code » inutilisable.
+ */
+const lienDeLaFonctionComptes = async (charge: Record<string, unknown>, repli: string): Promise<string> => {
+  const { data, error } = await supabase.functions.invoke<ReponseComptes>('comptes', { body: charge })
+
+  if (error) {
+    const contexte = (error as { context?: unknown }).context
+    if (contexte instanceof Response) {
+      const corps = (await contexte.json().catch(() => null)) as ReponseComptes | null
+      if (corps?.erreur) throw new Error(corps.erreur)
+    }
+    throw new Error(`${repli} : ${error.message}`)
+  }
+
+  if (!data?.lien) throw new Error(`${repli} : réponse inattendue du serveur.`)
+  return data.lien
 }
 
 export const utilisateurService = {
@@ -166,5 +198,47 @@ export const utilisateurService = {
       .eq('id', id)
 
     if (error) throw new Error(messageErreur(error, "Impossible de changer l'état du compte"))
+  },
+
+  /**
+   * Crée un compte et rend le lien d'activation à transmettre à la personne.
+   *
+   * Rien n'est envoyé : l'instance n'a pas de relais SMTP pour Supabase Auth.
+   * L'administrateur copie le lien et le transmet lui-même. Le compte existe
+   * dès maintenant et apparaît dans la liste ; il n'est utilisable qu'une fois
+   * le mot de passe choisi depuis ce lien.
+   *
+   * @param saisie Nom complet, adresse e-mail et rôle du nouveau compte.
+   * @returns Le lien d'activation, à usage unique.
+   * @throws {Error} Si l'adresse est déjà prise ou si la création est refusée.
+   */
+  async inviter(saisie: InvitationInput): Promise<string> {
+    return lienDeLaFonctionComptes(
+      {
+        action: 'inviter',
+        email: saisie.email.trim(),
+        nom_complet: saisie.nomComplet.trim(),
+        role: saisie.role,
+      },
+      "Impossible d'inviter cette personne",
+    )
+  },
+
+  /**
+   * Produit un lien de réinitialisation de mot de passe pour un compte existant.
+   *
+   * Même mécanique que l'invitation, et même écran d'arrivée : c'est la réponse
+   * à « j'ai oublié mon mot de passe », l'instance ne pouvant pas expédier
+   * elle-même l'e-mail de récupération.
+   *
+   * @param email Adresse du compte concerné.
+   * @returns Le lien de réinitialisation, à usage unique.
+   * @throws {Error} Si le compte est inconnu ou désactivé.
+   */
+  async lienMotDePasse(email: string): Promise<string> {
+    return lienDeLaFonctionComptes(
+      { action: 'reinitialiser', email: email.trim() },
+      'Impossible de produire un lien de mot de passe',
+    )
   },
 }

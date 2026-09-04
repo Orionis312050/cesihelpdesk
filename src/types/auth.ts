@@ -9,6 +9,16 @@
  */
 export type Role = 'admin' | 'technicien'
 
+/** Saisie du formulaire d'invitation d'un nouveau membre du personnel. */
+export interface InvitationInput {
+  /** Nom complet affiché dans la colonne « Traitant » */
+  nomComplet: string
+  /** Adresse e-mail, qui servira d'identifiant de connexion */
+  email: string
+  /** Rôle attribué à la création */
+  role: Role
+}
+
 /** Compte du personnel, tel que lu dans la table `utilisateurs`. */
 export interface Profil {
   /** Identifiant, identique à `auth.users.id` */

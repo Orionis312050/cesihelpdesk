@@ -17,9 +17,10 @@
 # 2. Supavisor (pooler) et Postgres ne sont exposés que sur 127.0.0.1 :
 #    5432/6543 pour le pooler, 5433 en direct pour les migrations.
 #
-# 3. La fonction « notifications » est montée depuis le dépôt de l'application
-#    (HELPDESK_REPO) — pas de copie à resynchroniser — et reçoit ses secrets.
-#    Le relais SMTP est celui de Supabase Auth : un seul jeu de variables.
+# 3. Les fonctions « notifications » et « comptes » sont montées depuis le dépôt
+#    de l'application (HELPDESK_REPO) — pas de copie à resynchroniser — et
+#    reçoivent leurs secrets. Le relais SMTP est celui de Supabase Auth : un
+#    seul jeu de variables.
 #
 # `!override` remplace la liste amont au lieu de la fusionner (Compose >= 2.24).
 
@@ -40,6 +41,7 @@ services:
   functions:
     volumes:
       - ${HELPDESK_REPO}/supabase/functions/notifications:/home/deno/functions/notifications:ro
+      - ${HELPDESK_REPO}/supabase/functions/comptes:/home/deno/functions/comptes:ro
       - ${HELPDESK_REPO}/supabase/functions/_shared:/home/deno/functions/_shared:ro
     environment:
       FUNCTION_SECRET: ${FUNCTION_SECRET}

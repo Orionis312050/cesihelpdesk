@@ -392,6 +392,16 @@ deno_version = 2
 enabled = true
 verify_jwt = false
 
+# Fonction de gestion des comptes (invitation, lien de mot de passe).
+#
+# `verify_jwt = false` pour la même raison : la vérification amont accepterait
+# la clé publiable, qui est un JWT valide connu de tous. La fonction contrôle
+# elle-même le jeton de l'appelant et exige un administrateur ACTIF — ce que la
+# plateforme, elle, ne sait pas faire.
+[functions.comptes]
+enabled = true
+verify_jwt = false
+
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 

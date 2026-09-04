@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { Icons } from '../../components/ui/Icons/Icons'
 import { useAuth } from '../../hooks/useAuth'
 import { useTickets } from '../../hooks/useTickets'
 import { useToast } from '../../hooks/useToast'
 import { utilisateurService } from '../../services/utilisateurs'
-import type { Profil, Role } from '../../types/auth'
+import type { InvitationInput, Profil, Role } from '../../types/auth'
 import { normaliser } from '../../utils/ticketFilters'
+
+const SAISIE_VIDE: InvitationInput = { nomComplet: '', email: '', role: 'technicien' }
 
 const classesChamp = (enErreur = false) =>
   `w-full border-2 rounded p-2 min-h-11 outline-none transition-colors ${
@@ -17,6 +19,88 @@ const classesSelect = 'border-2 border-gray-200 rounded px-2 py-2 min-h-11 text-
 
 /** Compte en cours de renommage, avec la saisie en cours. */
 type Edition = { id: string; nomComplet: string }
+
+/** Lien fraîchement produit, en attente d'être transmis par l'administrateur. */
+type LienProduit = {
+  /** `invitation` ou `mot de passe` : ce que la personne trouvera au bout. */
+  nature: 'invitation' | 'mot-de-passe'
+  /** Compte concerné, pour éviter de transmettre le lien à la mauvaise personne. */
+  email: string
+  url: string
+}
+
+/**
+ * Affiche le lien produit, avec de quoi le copier.
+ *
+ * Il ne part par aucun e-mail : cette instance n'a pas de relais SMTP pour
+ * Supabase Auth. C'est donc le seul endroit et le seul moment où le lien est
+ * visible — d'où l'avertissement, et le défilement automatique jusqu'ici quand
+ * l'action a été déclenchée depuis une ligne du tableau, plus bas.
+ */
+const BoiteLien = ({ lien, onFermer }: { lien: LienProduit; onFermer: () => void }) => {
+  const toast = useToast()
+  const boite = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    boite.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [])
+
+  const copier = async () => {
+    try {
+      await navigator.clipboard.writeText(lien.url)
+      toast.succes('Lien copié.')
+    } catch {
+      // Le presse-papiers est refusé hors contexte sécurisé (http). Le lien
+      // reste sélectionnable à la main dans le champ ci-dessus.
+      toast.erreur('Copie impossible depuis ce navigateur : sélectionnez le lien pour le copier.')
+    }
+  }
+
+  return (
+    <section
+      ref={boite}
+      aria-labelledby="lien-titre"
+      className="bg-white border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-xl p-6"
+      role="status"
+      aria-live="polite"
+    >
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div>
+          <h2 id="lien-titre" className="text-lg font-black uppercase tracking-tight">
+            {lien.nature === 'invitation' ? 'Lien d’invitation' : 'Lien de mot de passe'}
+          </h2>
+          <p className="text-sm text-gray-600 mt-1">
+            À transmettre à <strong className="break-all">{lien.email}</strong>, par le moyen de votre choix.
+          </p>
+        </div>
+        <button type="button" onClick={onFermer} aria-label="Masquer le lien" className={classesBoutonSecondaire}>
+          <Icons.Close /> Masquer
+        </button>
+      </div>
+
+      <label htmlFor="lien-produit" className="sr-only">Lien à transmettre</label>
+      <div className="flex flex-col sm:flex-row gap-2">
+        <input
+          id="lien-produit"
+          type="text"
+          readOnly
+          value={lien.url}
+          onFocus={evenement => evenement.currentTarget.select()}
+          className="w-full border-2 border-gray-200 rounded p-2 min-h-11 text-sm font-mono bg-gray-50 focus:border-black outline-none"
+        />
+        <button type="button" onClick={() => void copier()} className={classesBoutonPrincipal}>
+          <Icons.Check /> Copier
+        </button>
+      </div>
+
+      <p className="text-xs text-gray-500 mt-3">
+        Ce lien ouvre l'écran « Votre mot de passe ». Il ne sert qu'une fois et finit par expirer :
+        s'il n'aboutit plus, produisez-en un nouveau. <strong>Il ne sera plus affiché après fermeture
+        de cette page</strong> — copiez-le maintenant.
+      </p>
+    </section>
+  )
+}
 
 const Etat = ({ actif }: { actif: boolean }) => actif
   ? <span className="inline-block text-xs font-bold px-2 py-1 rounded-full bg-green-100 text-green-800 border border-green-300">Actif</span>
@@ -84,13 +168,19 @@ const LigneEdition = ({ compte, edition, erreur, occupe, onChange, onEnregistrer
 /**
  * Gestion des comptes du personnel.
  *
- * Trois opérations : changer le rôle, activer ou désactiver, corriger le nom
- * affiché. Ni création ni suppression — l'identité vit dans `auth.users`, que le
- * navigateur ne peut pas administrer (l'inscription publique est fermée en
- * production), et un compte porte l'historique des incidents qu'il a traités.
+ * Inviter quelqu'un, corriger un nom affiché, changer un rôle, activer ou
+ * désactiver. Pas de suppression : un compte porte l'historique des incidents
+ * qu'il a traités.
  *
- * Ces opérations se faisaient jusqu'ici en SQL (docs/04-exploitation.md) — hors
- * de portée d'un administrateur qui n'a que l'application sous la main.
+ * L'invitation et la réinitialisation de mot de passe produisent un LIEN, que
+ * l'administrateur transmet lui-même : Supabase Auth n'a pas de relais SMTP sur
+ * cette instance. Ces deux actions passent par la fonction Edge « comptes »,
+ * seule à détenir la clé de service ; les autres écrivent directement dans la
+ * table, sous le contrôle des politiques RLS.
+ *
+ * Toutes se faisaient jusqu'ici en SQL ou en SSH sur la VM
+ * (docs/04-exploitation.md) — hors de portée d'un administrateur qui n'a que
+ * l'application sous la main.
  */
 export const UtilisateursPage = () => {
   const toast = useToast()
@@ -103,6 +193,10 @@ export const UtilisateursPage = () => {
   const [erreurEdition, setErreurEdition] = useState<string | null>(null)
   /** Compte en cours d'écriture : bloque les autres actions pendant ce temps. */
   const [occupe, setOccupe] = useState<string | null>(null)
+  const [invitation, setInvitation] = useState<InvitationInput>(SAISIE_VIDE)
+  const [erreurInvitation, setErreurInvitation] = useState<string | null>(null)
+  const [envoiInvitation, setEnvoiInvitation] = useState(false)
+  const [lien, setLien] = useState<LienProduit | null>(null)
 
   const charger = useCallback(
     () => utilisateurService.listerTous()
@@ -122,6 +216,52 @@ export const UtilisateursPage = () => {
 
   const nbAdmins = comptes.filter(c => c.role === 'admin' && c.actif).length
   const nbInactifs = comptes.filter(c => !c.actif).length
+
+  const inviter = async (evenement: FormEvent<HTMLFormElement>) => {
+    evenement.preventDefault()
+    setErreurInvitation(null)
+
+    const nomComplet = invitation.nomComplet.trim()
+    const email = invitation.email.trim()
+    if (!nomComplet) {
+      setErreurInvitation('Le nom complet est obligatoire.')
+      return
+    }
+    // Contrôle volontairement grossier : la vraie validation est celle de
+    // Supabase Auth, qui refusera une adresse mal formée.
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setErreurInvitation('Adresse e-mail invalide.')
+      return
+    }
+
+    setEnvoiInvitation(true)
+    try {
+      const url = await utilisateurService.inviter({ ...invitation, nomComplet, email })
+      toast.succes(`Compte créé pour « ${nomComplet} ». Transmettez-lui le lien affiché.`)
+      setLien({ nature: 'invitation', email, url })
+      setInvitation(SAISIE_VIDE)
+      await charger()
+    } catch (cause) {
+      // Le message reste sous le formulaire : la saisie fautive est encore à
+      // l'écran, contrairement à une notification qui disparaît.
+      setErreurInvitation(cause instanceof Error ? cause.message : "Impossible d'inviter cette personne.")
+    } finally {
+      setEnvoiInvitation(false)
+    }
+  }
+
+  const produireLienMotDePasse = async (compte: Profil) => {
+    setOccupe(compte.id)
+    try {
+      const url = await utilisateurService.lienMotDePasse(compte.email)
+      toast.succes(`Lien prêt pour « ${compte.nomComplet} ».`)
+      setLien({ nature: 'mot-de-passe', email: compte.email, url })
+    } catch (cause) {
+      toast.erreurDe(cause, 'Impossible de produire un lien de mot de passe.')
+    } finally {
+      setOccupe(null)
+    }
+  }
 
   const commencerEdition = (compte: Profil) => {
     setEdition({ id: compte.id, nomComplet: compte.nomComplet })
@@ -208,6 +348,69 @@ export const UtilisateursPage = () => {
             : `${comptes.length} compte(s), dont ${nbAdmins} administrateur(s) actif(s)${nbInactifs > 0 ? ` et ${nbInactifs} compte(s) désactivé(s)` : ''}.`}
         </p>
       </div>
+
+      <section
+        aria-labelledby="invitation-titre"
+        className="bg-white border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-xl p-6"
+      >
+        <h2 id="invitation-titre" className="text-lg font-black uppercase tracking-tight mb-3">
+          Inviter un utilisateur
+        </h2>
+        <form onSubmit={inviter} noValidate className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto_auto] gap-3 items-start">
+          <div>
+            <label htmlFor="invitation-nom" className="block text-sm font-bold mb-1">Nom complet *</label>
+            <input
+              id="invitation-nom"
+              type="text"
+              placeholder="Ex : Camille Martin"
+              value={invitation.nomComplet}
+              onChange={e => setInvitation({ ...invitation, nomComplet: e.target.value })}
+              aria-invalid={Boolean(erreurInvitation)}
+              aria-describedby={erreurInvitation ? 'erreur-invitation' : undefined}
+              className={classesChamp(Boolean(erreurInvitation))}
+            />
+          </div>
+          <div>
+            <label htmlFor="invitation-email" className="block text-sm font-bold mb-1">Adresse e-mail *</label>
+            <input
+              id="invitation-email"
+              type="email"
+              autoComplete="off"
+              placeholder="prenom.nom@cesi.fr"
+              value={invitation.email}
+              onChange={e => setInvitation({ ...invitation, email: e.target.value })}
+              aria-invalid={Boolean(erreurInvitation)}
+              aria-describedby={erreurInvitation ? 'erreur-invitation' : undefined}
+              className={classesChamp(Boolean(erreurInvitation))}
+            />
+          </div>
+          <div>
+            <label htmlFor="invitation-role" className="block text-sm font-bold mb-1">Rôle</label>
+            <select
+              id="invitation-role"
+              value={invitation.role}
+              onChange={e => setInvitation({ ...invitation, role: e.target.value as Role })}
+              className={`${classesSelect} w-full`}
+            >
+              <option value="technicien">Technicien</option>
+              <option value="admin">Administrateur</option>
+            </select>
+          </div>
+          <button type="submit" disabled={envoiInvitation || occupe !== null} className={`${classesBoutonPrincipal} sm:mt-6`}>
+            <Icons.Plus /> {envoiInvitation ? 'Création…' : 'Inviter'}
+          </button>
+        </form>
+        {erreurInvitation && (
+          <p id="erreur-invitation" role="alert" className="mt-2 text-sm text-red-700 font-medium">{erreurInvitation}</p>
+        )}
+        <p className="text-xs text-gray-500 mt-3">
+          Le compte est créé aussitôt et apparaît dans la liste. Il ne devient utilisable qu'une fois
+          le mot de passe choisi depuis le lien produit ci-dessous — rien n'est envoyé automatiquement,
+          c'est vous qui transmettez ce lien.
+        </p>
+      </section>
+
+      {lien && <BoiteLien key={lien.url} lien={lien} onFermer={() => setLien(null)} />}
 
       <section aria-labelledby="liste-titre" className="bg-white rounded-xl shadow p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
@@ -301,6 +504,16 @@ export const UtilisateursPage = () => {
                         </button>
                         <button
                           type="button"
+                          onClick={() => void produireLienMotDePasse(compte)}
+                          disabled={actionsBloquees || !compte.actif}
+                          aria-label={`Produire un lien de mot de passe pour ${compte.nomComplet}`}
+                          title={compte.actif ? undefined : 'Réactivez le compte pour lui produire un lien.'}
+                          className={classesBoutonSecondaire}
+                        >
+                          Lien mot de passe
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => void basculerActif(compte)}
                           disabled={actionsBloquees || estMoi}
                           aria-label={`${compte.actif ? 'Désactiver' : 'Réactiver'} le compte ${compte.nomComplet}`}
@@ -336,33 +549,6 @@ export const UtilisateursPage = () => {
           </table>
         </div>
 
-        <div className="mt-4 bg-gray-50 border-l-4 border-black text-sm text-gray-700 p-3 rounded space-y-2">
-          <p>
-            <strong>La création d'un compte se fait sur le serveur</strong>, avec{' '}
-            <code>deploy/scripts/creer-compte-admin.sh</code>. L'inscription publique est
-            volontairement fermée en production : ouverte, elle permettrait à un inconnu de
-            s'enregistrer lui-même comme administrateur.
-          </p>
-          <p>
-            <strong>Aucune suppression possible.</strong> Un compte est référencé par les incidents
-            qu'il a traités : désactivez-le pour lui couper l'accès, son nom reste affiché sur les
-            fiches passées.
-          </p>
-          <p>
-            <strong>L'adresse e-mail n'est pas modifiable ici :</strong> c'est l'identifiant de
-            connexion, détenu par Supabase Auth. La changer dans ce tableau désynchroniserait
-            l'annuaire de l'identité réelle.
-          </p>
-          <p>
-            <strong>Un changement de rôle prend effet immédiatement</strong> sur l'accès aux
-            données ; la personne concernée doit en revanche recharger la page pour que son menu se
-            mette à jour.
-          </p>
-          <p>
-            <strong>Sur votre propre ligne</strong>, le rôle et l'état sont verrouillés. La base
-            refuse par ailleurs de retirer le dernier administrateur actif.
-          </p>
-        </div>
       </section>
     </div>
   )

@@ -175,14 +175,20 @@ la sortie de `npm run functions:serve`, et une ligne est ajoutée dans
 
 5. Renseignez `.env.local` avec l'URL et la clé publiable du projet
    (Project Settings → API).
-6. Déployez la fonction et ses secrets :
+6. Déployez les fonctions et leurs secrets :
 
    ```bash
    npx supabase functions deploy notifications
-   npx supabase secrets set FUNCTION_SECRET=<chaine-aleatoire> MAIL_TRANSPORT=console
+   npx supabase functions deploy comptes
+   npx supabase secrets set FUNCTION_SECRET=<chaine-aleatoire> MAIL_TRANSPORT=console \r
+     PUBLIC_APP_URL=https://<votre-application>
    ```
 
-7. Créez le premier compte :
+   `PUBLIC_APP_URL` est l'adresse publique de l'application : c'est sur elle que
+   sont construits les liens d'invitation et de mot de passe.
+
+7. Créez le premier compte — les suivants s'invitent depuis le menu
+   **Utilisateurs** de l'application :
 
    ```bash
    SB_URL=https://<ref>.supabase.co SB_ANON=<cle-publiable> \

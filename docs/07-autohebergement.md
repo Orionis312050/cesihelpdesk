@@ -29,6 +29,7 @@ flowchart LR
         GW --> REST["PostgREST"]
         GW --> ST["Storage"]
         GW --> EF["Edge Function<br/>notifications"]
+        GW --> EFC["Edge Function<br/>comptes"]
         GW -.->|"tunnel SSH"| STUDIO["Studio"]
         DB[("PostgreSQL 17<br/>pg_cron · pg_net")] -->|"déclencheur"| GW
     end
@@ -443,10 +444,10 @@ voici ce qui change quand la pile est autohébergée.
 | --- | --- |
 | *SQL Editor du tableau de bord* | Studio par tunnel SSH (§ 10), ou `docker exec -i supabase-db psql -U postgres -d postgres` |
 | `npx supabase secrets set X=Y` | éditer `/opt/supabase/.env`, puis `cd /opt/supabase && docker compose up -d functions` |
-| `npx supabase functions deploy notifications` | rien : la fonction est montée depuis `/opt/cesihelpdesk/supabase/functions`. Après un `git pull` : `docker compose restart functions` |
-| *Authentication → Users → Add user* | `bash deploy/scripts/creer-compte-admin.sh …` (§ 7) |
+| `npx supabase functions deploy notifications` | rien : les fonctions sont montées depuis `/opt/cesihelpdesk/supabase/functions`. Après un `git pull` : `docker compose restart functions` |
+| *Authentication → Users → Add user* | menu **Comptes** de l'application, encadré « Inviter un utilisateur ». En dépannage : `bash deploy/scripts/creer-compte-admin.sh …` (§ 7) |
 | *SQL : changer un rôle, désactiver un compte* | menu **Comptes** de l'application |
-| *Send password recovery* | `bash deploy/scripts/creer-compte-admin.sh <email> <nouveau-mot-de-passe>` |
+| *Send password recovery* | menu **Comptes**, bouton « Lien mot de passe » — le lien est transmis à la main, Auth n'ayant pas de relais SMTP. En dépannage : `bash deploy/scripts/creer-compte-admin.sh <email> <nouveau-mot-de-passe>` |
 
 ### Mettre à jour l'application
 
@@ -456,6 +457,18 @@ bash deploy/scripts/appliquer-migrations.sh   # n'applique que les nouvelles mig
 bash deploy/scripts/deployer-web.sh           # reconstruit dist/ ; le conteneur le voit aussitôt
 cd /opt/supabase && docker compose restart functions   # si supabase/functions/ a changé
 ```
+
+> **Une fonction NOUVELLE ne suffit pas d'un `restart`** : elle arrive avec un
+> montage supplémentaire dans `docker-compose.helpdesk.yml`, que seule une
+> recréation du conteneur prend en compte. Recopiez la surcouche et recréez :
+>
+> ```bash
+> cp /opt/cesihelpdesk/deploy/supabase-overlay/docker-compose.helpdesk.yml /opt/supabase/
+> cd /opt/supabase && docker compose up -d functions
+> ```
+>
+> C'est le cas de la fonction « comptes » (invitation et lien de mot de passe),
+> ajoutée après la première mise en production.
 
 ### Passer aux e-mails réels
 
@@ -471,8 +484,10 @@ ssh -t <utilisateur>@10.0.50.X "cd /opt/cesihelpdesk && \
 bash deploy/scripts/tester-smtp.sh <votre-adresse>
 ```
 
-Ces variables sont **partagées** avec Supabase Auth : après bascule, les liens
-« mot de passe oublié » fonctionnent aussi. `basculer-smtp.sh` sauvegarde le
+Ces variables sont **partagées** avec Supabase Auth : après bascule, ses propres
+e-mails (récupération depuis Studio, changement d'adresse) partent aussi. Les
+liens d'invitation et de mot de passe de l'application, eux, restent transmis à
+la main et ne dépendent pas de ce réglage. `basculer-smtp.sh` sauvegarde le
 `.env`, refuse les valeurs invalides, puis redémarre `auth` et `functions`.
 
 **Quel relais ?** Le FortiGate du labo laisse sortir 587 et 465 ; Gmail,

@@ -11,7 +11,8 @@
 #   2. Studio et les routes d'administration ne sont pas exposés ;
 #   3. la réécriture SPA fonctionne (un QR code scanné ne donne pas 404) ;
 #   4. HTTP redirige vers HTTPS et le certificat est valide ;
-#   5. l'API répond à travers NPM et le filtre, et la fonction refuse sans secret.
+#   5. l'API répond à travers NPM et le filtre, et les fonctions refusent un
+#      appel non habilité (secret absent, ou jeton qui n'est pas administrateur).
 #
 # Complément : SB_URL=https://<domaine> SB_ANON=… bash scripts/verifier-rls.sh (22 tests RLS).
 
@@ -91,6 +92,19 @@ c="$(code "https://$hote/auth/v1/health" -H "apikey: $SB_ANON")"
 [ "$c" = "200" ] && reussite "GET /auth/v1/health → 200" || echec "GET /auth/v1/health → $c — custom location /auth/ manquante dans NPM ?"
 c="$(code -X POST "https://$hote/functions/v1/notifications" -H "Content-Type: application/json" -d '{"mode":"recap"}')"
 [ "$c" = "401" ] && reussite "POST /functions/v1/notifications sans secret → 401" || echec "POST /functions/v1/notifications sans secret → $c (attendu 401)"
+# Sans jeton d'administrateur, « comptes » ne doit créer personne : c'est le seul
+# rempart, la fonction détenant la clé de service.
+c="$(code -X POST "https://$hote/functions/v1/comptes" -H "Content-Type: application/json" \
+  -d '{"action":"inviter","email":"intrus@example.com","nom_complet":"Intrus","role":"admin"}')"
+[ "$c" = "401" ] && reussite "POST /functions/v1/comptes sans jeton → 401" || echec "POST /functions/v1/comptes sans jeton → $c (attendu 401)"
+# La clé publiable est un JWT valide : elle ne doit pas plus passer.
+c="$(code -X POST "https://$hote/functions/v1/comptes" -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $SB_ANON" \
+  -d '{"action":"inviter","email":"intrus@example.com","nom_complet":"Intrus","role":"admin"}')"
+case "$c" in
+  401|403) reussite "POST /functions/v1/comptes avec la clé publiable → $c" ;;
+  *) echec "POST /functions/v1/comptes avec la clé publiable → $c (attendu 401/403)" ;;
+esac
 c="$(code "https://$hote/storage/v1/object/incidents/inexistant.jpg")"
 case "$c" in
   400|401|403|404) reussite "GET objet du bucket privé sans jeton → $c" ;;

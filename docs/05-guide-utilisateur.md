@@ -106,7 +106,9 @@ déclaration est enregistrée. Donnez la salle et la date au service technique.
 ## Se connecter
 
 Cliquez sur **Connexion** en haut à droite et saisissez vos identifiants
-professionnels. Votre compte est créé par un administrateur.
+professionnels. Votre compte est créé par un administrateur, qui vous transmet
+un lien pour choisir votre mot de passe. **Mot de passe oublié ?** Demandez-lui
+un nouveau lien : l'application n'envoie pas d'e-mail de récupération.
 
 Une fois connecté, des menus supplémentaires apparaissent : **Suivi** et
 **Stats**, puis **QR** et **Salles** pour les administrateurs.
@@ -281,6 +283,18 @@ La page liste tous les comptes du personnel, désactivés compris, avec leur
 adresse e-mail, leur rôle et leur état. Un champ de recherche filtre sur le nom
 ou l'adresse.
 
+**Inviter quelqu'un** — encadré **Inviter un utilisateur** : nom complet,
+adresse e-mail, rôle, puis **Inviter**. L'application affiche un **lien**, que
+vous copiez et transmettez vous-même à la personne : elle y choisit son mot de
+passe et arrive connectée sur le suivi. Aucun e-mail n'est envoyé
+automatiquement — le lien ne s'affiche qu'une fois, copiez-le avant de quitter
+la page. S'il expire ou a déjà servi, produisez-en un nouveau.
+
+**Donner un lien de mot de passe** — bouton **Lien mot de passe** sur la ligne
+du compte, quand quelqu'un a oublié le sien. Même principe : un lien à usage
+unique, que vous transmettez. Un compte désactivé n'y a pas droit tant qu'il
+n'est pas réactivé.
+
 **Changer le rôle** — la liste déroulante de la colonne *Rôle* bascule entre
 *Technicien* et *Administrateur*. Le changement s'applique immédiatement ; la
 personne concernée doit recharger la page pour voir son menu évoluer.
@@ -295,12 +309,15 @@ les fiches qu'il a traitées. Le bouton **Réactiver** lui rend l'accès.
 
 Ce que la page ne fait pas :
 
-- **créer un compte** — cela se fait sur le serveur, par un script
-  (`docs/04-exploitation.md` § Comptes). L'inscription depuis le site est
-  fermée : ouverte, n'importe qui pourrait s'y déclarer administrateur ;
-- **changer une adresse e-mail ou un mot de passe** — ils appartiennent au
-  système d'authentification, pas à cette table ;
+- **changer une adresse e-mail** — c'est l'identifiant de connexion, il
+  appartient au système d'authentification et non à cette table ;
+- **lire ou choisir un mot de passe à la place de quelqu'un** — vous produisez
+  un lien, la personne choisit ;
 - **supprimer un compte** — il porte l'historique des incidents qu'il a traités.
+
+L'inscription depuis le site reste fermée : ouverte, n'importe qui pourrait s'y
+déclarer administrateur. C'est pourquoi les comptes ne naissent que d'une
+invitation.
 
 Deux verrous vous protègent : sur votre propre ligne, le rôle et l'état sont
 figés, et l'application refuse de retirer le dernier administrateur actif.

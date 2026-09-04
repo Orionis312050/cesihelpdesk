@@ -12,7 +12,7 @@ Ce dossier n'en est que l'outillage.
 | `scripts/installer-supabase.sh` | Installe la pile Supabase (clone épinglé + `.env` + surcouche) dans `/opt/supabase` |
 | `scripts/appliquer-migrations.sh` | Applique `supabase/migrations/` puis charge les référentiels (ou la démo) |
 | `scripts/deployer-web.sh` | Construit `dist/` avec les variables de production et démarre le nginx |
-| `scripts/creer-compte-admin.sh` | Crée un compte du personnel par l'API d'administration (inscription fermée) |
+| `scripts/creer-compte-admin.sh` | Crée le **premier** compte, ou rejoue un mot de passe, par l'API d'administration. Les suivants s'invitent depuis le menu **Utilisateurs** |
 | `scripts/configurer-notifications.sh` | Relie la base à la fonction « notifications » (URL interne + secret) |
 | `scripts/verifier-deploiement.sh` | Contrôles de mise en service contre les URL publiques |
 | `scripts/sauvegarder.sh` | Dump de la base + archive des photos, rotation 14 jours |

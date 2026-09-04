@@ -36,6 +36,13 @@ export const router = createBrowserRouter([
       // Cible des QR codes : la salle est pré-remplie et confirmée à l'écran.
       { path: 'salle/:salle', element: <ReportPage /> },
       { path: 'connexion', element: <LoginPage /> },
+      // Arrivée des liens d'invitation et de mot de passe oublié, produits
+      // depuis la page « Utilisateurs ». Publique par nécessité : la personne
+      // n'a précisément pas encore de mot de passe.
+      {
+        path: 'definir-mot-de-passe',
+        lazy: async () => ({ Component: (await import('../pages/DefinirMotDePassePage/DefinirMotDePassePage')).DefinirMotDePassePage }),
+      },
 
       // Espace d'administration : personnel connecté
       {

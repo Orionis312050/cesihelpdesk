@@ -84,8 +84,8 @@ export const LoginPage = () => {
         </button>
 
         <p className="text-xs text-gray-500 text-center">
-          Vous n'avez pas de compte ? Les comptes sont créés par un administrateur
-          (voir <code>docs/04-exploitation.md</code>).
+          Pas de compte, ou mot de passe oublié ? Un administrateur vous transmet un lien
+          pour en choisir un — aucun e-mail de récupération n'est envoyé automatiquement.
         </p>
       </form>
     </div>

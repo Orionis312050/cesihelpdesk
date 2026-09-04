@@ -207,9 +207,9 @@ cibles tactiles réelles, ni l'ouverture de l'appareil photo.
 
 ## R-Cxx — Gestion des comptes
 
-Prérequis : deux comptes au moins, dont un second administrateur pour R-C08 —
-`bash deploy/scripts/creer-compte-admin.sh` (ou `scripts/creer-compte.sh` en
-local).
+Prérequis : un compte administrateur — `bash deploy/scripts/creer-compte-admin.sh`
+(ou `scripts/creer-compte.sh` en local). Les autres comptes de la campagne se
+créent par R-C13.
 
 | ID | Étapes | Résultat attendu | OK/KO | Preuve |
 | --- | --- | --- | :---: | --- |
@@ -225,6 +225,14 @@ local).
 | R-C10 | Tenter de réécrire une adresse e-mail par l'API REST (`PATCH` avec `{"email":"…"}`) | Refus : la colonne n'est pas accordée à `authenticated` | | |
 | R-C11 | Taper « viacesi » dans la recherche | Seuls les comptes dont le nom ou l'adresse contient la chaîne restent affichés | | |
 | R-C12 | Se connecter en `technicien`, ouvrir `/utilisateurs` | Écran « Accès réservé ». Le lien « Comptes » est absent du menu | | |
+| R-C13 | Inviter « Camille Martin », `camille.martin@viacesi.fr`, rôle Technicien | Notification de création. Le compte apparaît dans la liste, actif, rôle Technicien. Un encadré affiche un lien vers `/definir-mot-de-passe#token=…` | | |
+| R-C14 | Ouvrir ce lien dans une fenêtre de navigation privée, saisir deux fois le même mot de passe (≥ 8 caractères) | L'écran « Votre mot de passe » indique le compte concerné. Après enregistrement, arrivée directement sur le suivi, connecté en tant que Camille Martin | | |
+| R-C15 | Rouvrir le même lien | « Ce lien a expiré ou a déjà servi. » — le jeton ne sert qu'une fois | | |
+| R-C16 | Réinviter la même adresse | Message sous le formulaire : « Un compte utilise déjà cette adresse… ». Aucun doublon dans la liste | | |
+| R-C17 | Bouton « Lien mot de passe » sur la ligne de Camille Martin, puis suivre le lien et choisir un autre mot de passe | Un nouveau lien s'affiche. Le nouveau mot de passe fonctionne, l'ancien non | | |
+| R-C18 | Désactiver ce compte, puis regarder son bouton « Lien mot de passe » | Le bouton est inerte, avec l'infobulle « Réactivez le compte… » | | |
+| R-C19 | Appeler la fonction sans en-tête `Authorization` (`curl -X POST https://<domaine>/functions/v1/comptes -H 'Content-Type: application/json' -d '{"action":"inviter","email":"x@y.fr","nom_complet":"X"}'`) | HTTP 401. Aucun compte créé | | |
+| R-C20 | Rejouer le même appel avec le jeton d'un compte `technicien` | HTTP 403 « réservée aux administrateurs ». Aucun compte créé | | |
 
 Les contrôles R-C09 et R-C10 sont automatisés par `bash scripts/verifier-rls.sh`.
 

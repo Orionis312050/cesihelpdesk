@@ -23,6 +23,7 @@ flowchart TB
         AUTH["Auth<br/>(comptes, jetons)"]
         STO["Storage<br/>bucket privé « incidents »"]
         FN["Edge Function<br/>« notifications »"]
+        FNC["Edge Function<br/>« comptes »"]
         CRON["pg_cron"]
     end
     P --> SPA
@@ -30,6 +31,8 @@ flowchart TB
     SPA --> API
     SPA --> AUTH
     SPA --> STO
+    SPA -- "inviter, lien de mot de passe" --> FNC
+    FNC --> AUTH
     API --> DB
     DB -- "déclencheur : risque d'accident" --> FN
     CRON -- "vendredi 06:00 UTC" --> FN
