@@ -152,7 +152,7 @@ sa place ([ADR-003](adr/ADR-003-creation-par-fonction-rpc.md)).
 | Modifier statut, traitant, commentaire | ❌ | ✅ | ✅ |
 | Consulter les statistiques | ❌ | ✅ | ✅ |
 | Exporter vers Excel | ❌ | ✅ | ✅ |
-| Imprimer les QR codes | ❌ | ✅ | ✅ |
+| Imprimer les QR codes | ❌ | ❌ | ✅ |
 | Gérer salles, catégories et comptes | ❌ | ❌ | ✅ |
 | Supprimer un incident | ❌ | ❌ | ✅ |
 | Lire le journal des e-mails | ❌ | ❌ | ✅ |

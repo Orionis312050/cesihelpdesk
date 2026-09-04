@@ -11,7 +11,6 @@
 | Vous utilisez l'application | [05 — Guide utilisateur](05-guide-utilisateur.md) |
 | Vous devez vérifier ou démontrer le projet | [06 — Recette](06-recette.md) |
 | Vous déployez sur les serveurs de l'établissement | [07 — Autohébergement](07-autohebergement.md) |
-| Vous reprenez l'instance en production | [08 — Accès](08-acces.md) |
 | Vous cherchez la signature d'une fonction | [Référence d'API](api/) — `npm run docs` |
 
 ## Contenu
@@ -31,8 +30,6 @@
 - **[07 — Autohébergement](07-autohebergement.md)** — la pile Supabase et le
   front sur une VM Proxmox, publiés par Nginx Proxy Manager : installation,
   sécurité, sauvegardes, mises à jour. Outillé par le dossier `deploy/`.
-- **[08 — Accès](08-acces.md)** — fiche d'une page : adresses, identifiants,
-  Studio, mises à jour de l'application et de la pile.
 - **[adr/](adr/)** — douze fiches de décision : chaque choix structurant, les
   options écartées, et comment revenir en arrière.
 

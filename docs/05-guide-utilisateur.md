@@ -113,8 +113,8 @@ professionnels. Votre compte est créé par un administrateur, qui vous transmet
 un lien pour choisir votre mot de passe. **Mot de passe oublié ?** Demandez-lui
 un nouveau lien : l'application n'envoie pas d'e-mail de récupération.
 
-Une fois connecté, des menus supplémentaires apparaissent : **Suivi**, **Stats**
-et **QR**, puis **Salles** et **Comptes** pour les administrateurs.
+Une fois connecté, des menus supplémentaires apparaissent : **Suivi** et
+**Stats**, puis **QR** et **Salles** pour les administrateurs.
 
 ## Lire le tableau de suivi
 
@@ -232,7 +232,7 @@ de 30 jours** repèrent les dossiers oubliés.
 
 ## Imprimer les QR codes
 
-*Techniciens et administrateurs.* Menu **QR**.
+*Administrateurs uniquement.* Menu **QR**.
 
 **Dans la très grande majorité des cas, une seule affiche suffit.** La page
 s'ouvre directement sur l'**affiche générique** : son aperçu est visible, et le
