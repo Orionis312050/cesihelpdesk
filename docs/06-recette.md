@@ -205,6 +205,31 @@ cibles tactiles réelles, ni l'ouverture de l'appareil photo.
 
 ---
 
+## R-Cxx — Gestion des comptes
+
+Prérequis : deux comptes au moins, dont un second administrateur pour R-C08 —
+`bash deploy/scripts/creer-compte-admin.sh` (ou `scripts/creer-compte.sh` en
+local).
+
+| ID | Étapes | Résultat attendu | OK/KO | Preuve |
+| --- | --- | --- | :---: | --- |
+| R-C01 | Ouvrir `/utilisateurs` en administrateur | La liste s'affiche, triée par nom, avec e-mail, rôle et état. Le compteur indique le nombre de comptes, d'administrateurs actifs et de comptes désactivés | | |
+| R-C02 | Passer un technicien en « Administrateur » | Notification « … est désormais administrateur. » La liste suit. Après rechargement chez l'intéressé, les menus QR, Salles et Comptes lui apparaissent | | |
+| R-C03 | Renommer ce compte | Notification de confirmation. Le nouveau nom apparaît aussitôt dans la colonne « Traitant » du suivi, sans rechargement manuel | | |
+| R-C04 | Renommer avec un nom vide | Message « Le nom ne peut pas être vide. » sous le champ. Aucune écriture | | |
+| R-C05 | Désactiver ce compte | Badge « Désactivé », ligne grisée. Il disparaît de la liste « Traitant » d'une fiche. Ses incidents passés portent toujours son nom | | |
+| R-C06 | Se connecter avec le compte désactivé | La connexion aboutit mais l'application se comporte comme pour un visiteur : aucun incident lisible | | |
+| R-C07 | Le réactiver, puis se reconnecter avec | Badge « Actif ». L'accès au suivi est rétabli | | |
+| R-C08 | Sur sa propre ligne | Mention « (vous) ». La liste déroulante de rôle est remplacée par une étiquette, le bouton « Désactiver » est inerte et porte une infobulle | | |
+| R-C09 | Ne laisser qu'un administrateur actif, puis tenter de le rétrograder par l'API REST (`PATCH /rest/v1/utilisateurs?id=eq.<son id>` avec `{"role":"technicien"}` et un jeton admin) | Refus de la base : « Ce compte est le dernier administrateur actif… ». Le compte reste administrateur | | |
+| R-C10 | Tenter de réécrire une adresse e-mail par l'API REST (`PATCH` avec `{"email":"…"}`) | Refus : la colonne n'est pas accordée à `authenticated` | | |
+| R-C11 | Taper « viacesi » dans la recherche | Seuls les comptes dont le nom ou l'adresse contient la chaîne restent affichés | | |
+| R-C12 | Se connecter en `technicien`, ouvrir `/utilisateurs` | Écran « Accès réservé ». Le lien « Comptes » est absent du menu | | |
+
+Les contrôles R-C09 et R-C10 sont automatisés par `bash scripts/verifier-rls.sh`.
+
+---
+
 ## Traçabilité — exigences du cahier des charges
 
 | Exigence | Où c'est vérifié |

@@ -49,6 +49,9 @@ export const AppHeader = () => {
                   <NavLink to="/salles" className={lienClasses} title="Gestion des salles">
                     <Icons.Building /> <span className="hidden sm:inline">Salles</span>
                   </NavLink>
+                  <NavLink to="/utilisateurs" className={lienClasses} title="Gestion des comptes du personnel">
+                    <Icons.Users /> <span className="hidden sm:inline">Comptes</span>
+                  </NavLink>
                 </>
               )}
             </>

@@ -210,6 +210,68 @@ JSON
   else
     echec "l'administrateur ne lit pas l'annuaire — la liste des traitants sera vide"
   fi
+
+  # ---------------------------------------------------------------------------
+  # Écran « Utilisateurs » : l'administration des comptes passe désormais par
+  # l'API REST. Ce qu'elle NE doit PAS permettre compte autant que ce qu'elle
+  # permet — ces trois contrôles gardent la porte.
+  # ---------------------------------------------------------------------------
+  moi="$(curl -s "$SB_URL/rest/v1/utilisateurs?select=id&email=eq.$ADMIN_EMAIL" \
+    -H "apikey: $SB_ANON" -H "Authorization: Bearer $jeton" \
+    | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')"
+
+  if [ -z "$moi" ]; then
+    echec "aucune ligne utilisateurs pour $ADMIN_EMAIL — contrôles de gestion des comptes ignorés"
+  else
+    # `email` reflète auth.users.email : le réécrire ici désynchroniserait
+    # l'annuaire de l'identité de connexion. Protégé par un GRANT de colonne.
+    cat > "$tmp/email-reecrit.json" <<'JSON'
+{"email":"pirate@viacesi.fr"}
+JSON
+    corps="$(curl -s -X PATCH "$SB_URL/rest/v1/utilisateurs?id=eq.$moi" \
+      -H "apikey: $SB_ANON" -H "Authorization: Bearer $jeton" \
+      -H "Content-Type: application/json" -H "Prefer: return=representation" \
+      --data-binary "@$tmp/email-reecrit.json")"
+    if echo "$corps" | grep -q '"code"'; then
+      reussite "l'e-mail d'un compte n'est pas réinscriptible (identifiant de connexion)"
+    else
+      echec "un administrateur a RÉÉCRIT utilisateurs.email : ${corps:0:120}"
+    fi
+
+    # Supprimer viderait en silence l'historique des affectations
+    # (tickets.assigne_a_id est en « on delete set null ») en laissant vivre la
+    # ligne auth.users correspondante. La règle du projet est la désactivation.
+    corps="$(curl -s -X DELETE "$SB_URL/rest/v1/utilisateurs?id=eq.$moi" \
+      -H "apikey: $SB_ANON" -H "Authorization: Bearer $jeton" \
+      -H "Prefer: return=representation")"
+    if echo "$corps" | grep -q '"code"'; then
+      reussite "la suppression d'un compte est refusée (on désactive)"
+    else
+      echec "un administrateur a SUPPRIMÉ un compte : ${corps:0:120}"
+    fi
+
+    # Dernier administrateur actif : le déclencheur proteger_dernier_admin doit
+    # refuser la rétrogradation. Le test n'a de sens — et n'est sans danger —
+    # que s'il n'existe qu'un seul administrateur actif.
+    nb_admins="$(curl -s "$SB_URL/rest/v1/utilisateurs?select=id&role=eq.admin&actif=is.true" \
+      -H "apikey: $SB_ANON" -H "Authorization: Bearer $jeton" | grep -o '"id"' | wc -l | tr -d ' ')"
+    if [ "$nb_admins" = "1" ]; then
+      cat > "$tmp/retrogradation.json" <<'JSON'
+{"role":"technicien"}
+JSON
+      corps="$(curl -s -X PATCH "$SB_URL/rest/v1/utilisateurs?id=eq.$moi" \
+        -H "apikey: $SB_ANON" -H "Authorization: Bearer $jeton" \
+        -H "Content-Type: application/json" -H "Prefer: return=representation" \
+        --data-binary "@$tmp/retrogradation.json")"
+      if echo "$corps" | grep -q '"code"'; then
+        reussite "le dernier administrateur actif ne peut pas être rétrogradé"
+      else
+        echec "le DERNIER administrateur a été rétrogradé — relancez npm run db:reset : ${corps:0:120}"
+      fi
+    else
+      printf '  (ignoré : %s administrateurs actifs, ce test en exige un seul)\n' "$nb_admins"
+    fi
+  fi
 fi
 
 titre "6. Inventaire structurel (pile locale uniquement)"

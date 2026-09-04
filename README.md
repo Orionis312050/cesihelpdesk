@@ -24,6 +24,7 @@ les demandes depuis un espace d'administration.
 - statistiques : volume mensuel, répartition par type, délai moyen de résolution, salles les plus touchées ;
 - génération et impression des affiches à QR code, une par salle ;
 - gestion des salles depuis l'application : ajout, renommage, désactivation ;
+- gestion des comptes du personnel : rôle, activation, nom affiché ;
 - récapitulatif hebdomadaire envoyé automatiquement le vendredi matin.
 
 ## Stack technique

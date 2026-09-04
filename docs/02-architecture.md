@@ -70,7 +70,7 @@ src/
 │   └── qr.ts              Construction et lecture des liens de QR code
 ├── services/              Accès aux données : tout ce qui touche au réseau
 │   ├── tickets.ts         Lecture, création (RPC) et mise à jour des incidents
-│   ├── utilisateurs.ts    Annuaire du personnel
+│   ├── utilisateurs.ts    Annuaire du personnel et gestion des comptes
 │   ├── helpdeskData.ts    Salles et catégories actives, avec cache de 5 minutes
 │   ├── salles.ts          Gestion des salles (ajout, renommage, activation)
 │   ├── storage.ts         Envoi des photos et URL signées

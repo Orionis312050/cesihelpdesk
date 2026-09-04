@@ -95,6 +95,21 @@ l'inscription, en lisant `nom_complet` et `role` dans les métadonnées.
 Il n'existe **pas** de table `profiles` séparée : deux tables « personnel »
 signifieraient deux sources de vérité à maintenir synchronisées.
 
+Les administrateurs gèrent les comptes depuis l'écran `/utilisateurs` de
+l'application : rôle, activation, nom affiché. Trois garde-fous encadrent cet
+écran, tous **en base** — l'interface ne fait que les refléter :
+
+- un GRANT au niveau colonne limite l'écriture à `nom_complet`, `role` et
+  `actif`. `email` reflète `auth.users.email` : le réécrire ici
+  désynchroniserait l'annuaire de l'identité de connexion ;
+- `insert` et `delete` sont retirés à `authenticated`. La création passe par
+  Supabase Auth (le déclencheur fait le reste), et supprimer viderait en
+  silence l'historique des affectations — `tickets.assigne_a_id` est en
+  `on delete set null` — tout en laissant vivre la ligne `auth.users` ;
+- le déclencheur `proteger_dernier_admin` refuse de retirer le dernier
+  administrateur actif, que ce soit par rétrogradation ou par désactivation.
+  Sans lui, un seul clic laisserait l'instance sans personne pour l'administrer.
+
 ### `tickets`
 
 Cœur du modèle. Points à connaître :

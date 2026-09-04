@@ -445,6 +445,7 @@ voici ce qui change quand la pile est autohébergée.
 | `npx supabase secrets set X=Y` | éditer `/opt/supabase/.env`, puis `cd /opt/supabase && docker compose up -d functions` |
 | `npx supabase functions deploy notifications` | rien : la fonction est montée depuis `/opt/cesihelpdesk/supabase/functions`. Après un `git pull` : `docker compose restart functions` |
 | *Authentication → Users → Add user* | `bash deploy/scripts/creer-compte-admin.sh …` (§ 7) |
+| *SQL : changer un rôle, désactiver un compte* | menu **Comptes** de l'application |
 | *Send password recovery* | `bash deploy/scripts/creer-compte-admin.sh <email> <nouveau-mot-de-passe>` |
 
 ### Mettre à jour l'application

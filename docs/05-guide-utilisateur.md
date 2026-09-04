@@ -273,6 +273,38 @@ bouton **Réactiver** la remet en service.
 Il n'est pas possible de supprimer une salle : elle porte un historique
 d'incidents.
 
+## Gérer les comptes
+
+*Administrateurs uniquement.* Menu **Comptes**.
+
+La page liste tous les comptes du personnel, désactivés compris, avec leur
+adresse e-mail, leur rôle et leur état. Un champ de recherche filtre sur le nom
+ou l'adresse.
+
+**Changer le rôle** — la liste déroulante de la colonne *Rôle* bascule entre
+*Technicien* et *Administrateur*. Le changement s'applique immédiatement ; la
+personne concernée doit recharger la page pour voir son menu évoluer.
+
+**Renommer** — bouton **Renommer** sur la ligne, modifiez, puis **Enregistrer**
+(Entrée valide, Échap annule). Le nouveau nom remplace l'ancien partout, y
+compris sur les incidents déjà traités.
+
+**Désactiver** — au départ d'un agent. Le compte perd tout accès à
+l'application et disparaît de la liste des traitants ; son nom reste affiché sur
+les fiches qu'il a traitées. Le bouton **Réactiver** lui rend l'accès.
+
+Ce que la page ne fait pas :
+
+- **créer un compte** — cela se fait sur le serveur, par un script
+  (`docs/04-exploitation.md` § Comptes). L'inscription depuis le site est
+  fermée : ouverte, n'importe qui pourrait s'y déclarer administrateur ;
+- **changer une adresse e-mail ou un mot de passe** — ils appartiennent au
+  système d'authentification, pas à cette table ;
+- **supprimer un compte** — il porte l'historique des incidents qu'il a traités.
+
+Deux verrous vous protègent : sur votre propre ligne, le rôle et l'état sont
+figés, et l'application refuse de retirer le dernier administrateur actif.
+
 ## Ce que je reçois par e-mail
 
 **Alerte immédiate** — dès qu'un incident est déclaré avec la case « Risque
