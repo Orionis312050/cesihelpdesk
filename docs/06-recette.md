@@ -45,7 +45,7 @@ sur une machine vierge.
 | R-202 | Se connecter avec un mauvais mot de passe | « Adresse e-mail ou mot de passe incorrect. » Aucune redirection | | |
 | R-203 | Se connecter en `admin` | Retour sur `/suivi`. Le nom apparaît en haut à droite. Les menus Suivi, Stats, QR et Salles sont visibles | | |
 | R-204 | Rafraîchir la page (F5) | La session est conservée. **Aucun affichage transitoire de la page de connexion** | | |
-| R-205 | Se connecter en `technicien` et ouvrir `/qr-codes`, puis `/salles` | Écran « Accès réservé » sur les deux. Les menus QR et Salles ne sont pas affichés | | |
+| R-205 | Se connecter en `technicien` et ouvrir `/qr-codes`, puis `/salles` | `/qr-codes` s'ouvre normalement ; `/salles` affiche « Accès réservé ». Les menus Suivi, Stats et QR sont visibles, Salles et Comptes ne le sont pas | | |
 | R-206 | Se déconnecter | Retour au formulaire public. Les menus d'administration disparaissent. `/suivi` redirige de nouveau vers la connexion | | |
 | R-207 | Désactiver un compte (`update utilisateurs set actif=false …`), puis s'y connecter | La connexion aboutit mais l'espace d'administration reste inaccessible | | |
 
@@ -118,6 +118,10 @@ bash scripts/verifier-rls.sh
 | R-605 | Retirer une photo choisie puis en sélectionner une autre | La vignette est remplacée | | |
 | R-606 | Copier l'URL de la photo, attendre plus d'une heure, la rouvrir | Accès refusé (l'URL signée a expiré) — comportement attendu d'un bucket privé | | |
 | R-607 | Depuis un téléphone, toucher « Choisir une photo » | L'appareil photo s'ouvre directement | | |
+| R-608 | Antidater un incident avec photo : `update public.tickets set created_at = now() - interval '7 months' where id = <id>;` puis `select public.appeler_maintenance('{"mode":"purge_photos","simulation":true}'::jsonb);` et lire `select content from net._http_response order by id desc limit 1;` | `a_supprimer` ≥ 1. **Rien n'est supprimé** : l'objet est toujours dans Storage, la fiche affiche encore la photo | | |
+| R-609 | `select public.purger_photos_anciennes();`, attendre quelques secondes, rouvrir la fiche | L'objet a disparu du bucket (Studio → Storage → incidents), `image_chemin` est `null`, `image_supprimee_le` est renseigné. La fiche affiche « Photo supprimée automatiquement le … ». Titre, description, statut et commentaire sont intacts | | |
+| R-610 | Appeler la fonction sans l'en-tête `x-secret-maintenance` (`curl -X POST https://<domaine>/functions/v1/maintenance -H 'Content-Type: application/json' -d '{"mode":"purge_photos","mois":1}'`) | HTTP 401. Aucune photo supprimée | | |
+| R-611 | `select jobname, schedule, active from cron.job;` | `purge-photos`, `30 3 * * *`, actif | | |
 
 ---
 
@@ -152,6 +156,7 @@ bash scripts/verifier-rls.sh
 | R-809 | Puis **Imprimer la sélection** | L'aperçu contient **3 pages** : l'affiche générique n'est pas imprimée | | |
 | R-810 | Scanner l'affiche générique | Le formulaire s'ouvre **sans** bandeau « Salle détectée », champ Salle vide et modifiable | | |
 | R-811 | Déclarer un incident depuis l'affiche générique en choisissant « B204 », puis filtrer le suivi sur Lieu = B204 | L'incident apparaît. La localisation est aussi exploitable qu'avec une affiche dédiée | | |
+| R-812 | Ouvrir `/qr-codes` en `technicien` | Même page qu'en R-801 : affiche générique, section « Affiches par salle », les deux boutons d'impression fonctionnent. Le menu QR est visible | | |
 
 ---
 
@@ -214,7 +219,7 @@ créent par R-C13.
 | ID | Étapes | Résultat attendu | OK/KO | Preuve |
 | --- | --- | --- | :---: | --- |
 | R-C01 | Ouvrir `/utilisateurs` en administrateur | La liste s'affiche, triée par nom, avec e-mail, rôle et état. Le compteur indique le nombre de comptes, d'administrateurs actifs et de comptes désactivés | | |
-| R-C02 | Passer un technicien en « Administrateur » | Notification « … est désormais administrateur. » La liste suit. Après rechargement chez l'intéressé, les menus QR, Salles et Comptes lui apparaissent | | |
+| R-C02 | Passer un technicien en « Administrateur » | Notification « … est désormais administrateur. » La liste suit. Après rechargement chez l'intéressé, les menus Salles et Comptes lui apparaissent | | |
 | R-C03 | Renommer ce compte | Notification de confirmation. Le nouveau nom apparaît aussitôt dans la colonne « Traitant » du suivi, sans rechargement manuel | | |
 | R-C04 | Renommer avec un nom vide | Message « Le nom ne peut pas être vide. » sous le champ. Aucune écriture | | |
 | R-C05 | Désactiver ce compte | Badge « Désactivé », ligne grisée. Il disparaît de la liste « Traitant » d'une fiche. Ses incidents passés portent toujours son nom | | |

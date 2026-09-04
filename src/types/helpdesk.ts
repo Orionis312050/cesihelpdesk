@@ -72,6 +72,8 @@ export interface Ticket {
   adminComment: string
   /** Date de passage au statut `TERMINE`, `null` si non résolu */
   resolvedAt: string | null
+  /** Date à laquelle la purge automatique a retiré la photo, `null` sinon */
+  photoDeletedAt: string | null
 }
 
 /** Salle du campus, telle que lue dans la table `salles`. */

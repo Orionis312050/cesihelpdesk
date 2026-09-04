@@ -25,7 +25,8 @@ les demandes depuis un espace d'administration.
 - génération et impression des affiches à QR code, une par salle ;
 - gestion des salles depuis l'application : ajout, renommage, désactivation ;
 - gestion des comptes du personnel : rôle, activation, nom affiché ;
-- récapitulatif hebdomadaire envoyé automatiquement le vendredi matin.
+- récapitulatif hebdomadaire envoyé automatiquement le vendredi matin ;
+- photos supprimées automatiquement six mois après la déclaration, le signalement restant dans l'historique.
 
 ## Stack technique
 
@@ -38,7 +39,7 @@ les demandes depuis un espace d'administration.
 | Authentification | Supabase Auth, rôles `admin` et `technicien` |
 | Fichiers | Supabase Storage, bucket privé et URL signées |
 | E-mails | Supabase Edge Function (Deno) + relais SMTP |
-| Planification | `pg_cron` pour le récapitulatif hebdomadaire |
+| Planification | `pg_cron` : récapitulatif hebdomadaire, purge nocturne des photos |
 
 L'application est un site statique : aucun serveur applicatif à maintenir.
 
@@ -52,10 +53,13 @@ flowchart LR
         AUTH["Auth"]
         ST["Storage<br/>(photos)"]
         EF["Edge Function<br/>notifications"]
-        CRON["pg_cron<br/>vendredi 6 h UTC"]
+        EFM["Edge Function<br/>maintenance"]
+        CRON["pg_cron<br/>vendredi 6 h · chaque nuit 3 h 30 UTC"]
     end
     DB -- "déclencheur risque" --> EF
     CRON --> EF
+    CRON -- "purge des photos<br/>de plus de six mois" --> EFM
+    EFM --> ST
     EF --> SMTP["Relais SMTP CESI"]
     SMTP --> MAIL["Responsables du site"]
 ```

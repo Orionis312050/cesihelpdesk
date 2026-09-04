@@ -133,13 +133,18 @@ cp supabase/functions/.env.example supabase/functions/.env
 npm run functions:serve
 ```
 
-Indiquez ensuite à la base où joindre la fonction :
+Indiquez ensuite à la base où joindre les fonctions — « notifications », et
+« maintenance », qui purge les photos anciennes avec le même secret :
 
 ```sql
 -- À exécuter dans le SQL Editor, ou via psql sur la base locale.
 update public.configuration
    set valeur = 'http://host.docker.internal:54321/functions/v1/notifications'
  where cle = 'url_fonction_notifications';
+
+update public.configuration
+   set valeur = 'http://host.docker.internal:54321/functions/v1/maintenance'
+ where cle = 'url_fonction_maintenance';
 
 update public.configuration
    set valeur = '<le FUNCTION_SECRET de supabase/functions/.env>'
@@ -180,6 +185,7 @@ la sortie de `npm run functions:serve`, et une ligne est ajoutée dans
    ```bash
    npx supabase functions deploy notifications
    npx supabase functions deploy comptes
+   npx supabase functions deploy maintenance
    npx supabase secrets set FUNCTION_SECRET=<chaine-aleatoire> MAIL_TRANSPORT=console \r
      PUBLIC_APP_URL=https://<votre-application>
    ```

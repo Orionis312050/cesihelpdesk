@@ -12,7 +12,7 @@ ne figurent nulle part dans le dépôt et ne doivent jamais y entrer.
 ## Ce qu'on installe
 
 L'application est un site statique, mais elle repose sur la pile Supabase :
-PostgreSQL avec RLS, Auth, Storage, une Edge Function Deno, `pg_cron` et `pg_net`.
+PostgreSQL avec RLS, Auth, Storage, des Edge Functions Deno, `pg_cron` et `pg_net`.
 Autohéberger, c'est donc faire tourner **la pile Supabase officielle en Docker**
 sur une VM, servir `dist/` par un nginx, et publier le tout par NPM sous un seul
 nom de domaine.
@@ -30,6 +30,7 @@ flowchart LR
         GW --> ST["Storage"]
         GW --> EF["Edge Function<br/>notifications"]
         GW --> EFC["Edge Function<br/>comptes"]
+        GW --> EFM["Edge Function<br/>maintenance"]
         GW -.->|"tunnel SSH"| STUDIO["Studio"]
         DB[("PostgreSQL 17<br/>pg_cron · pg_net")] -->|"déclencheur"| GW
     end
@@ -245,8 +246,9 @@ ensuite d'un `delete from public.tickets;`.
 
 > `npm run db:reset` **efface la base**. Ne l'utilisez jamais contre cette instance.
 
-**Vérification :** le script affiche le bucket `incidents` (privé, 2 Mio), la
-tâche `recap-hebdomadaire` (`0 6 * * 5`) et les comptes de lignes.
+**Vérification :** le script affiche le bucket `incidents` (privé, 2 Mio), les
+tâches `recap-hebdomadaire` (`0 6 * * 5`) et `purge-photos` (`30 3 * * *`), et
+les comptes de lignes.
 
 ## 5. Construire et servir le front
 
@@ -348,10 +350,11 @@ démonstration).
 bash deploy/scripts/configurer-notifications.sh --tester
 ```
 
-Le script écrit dans `public.configuration` l'URL **interne** de la fonction
-(`http://api-gw:8000/functions/v1/notifications`) et le `FUNCTION_SECRET` du
-`.env`, puis — avec `--tester` — déclenche un récapitulatif et affiche
-`email_log`.
+Le script écrit dans `public.configuration` les URL **internes** des fonctions
+« notifications » et « maintenance » (`http://api-gw:8000/functions/v1/…`) et
+le `FUNCTION_SECRET` du `.env`, puis — avec `--tester` — déclenche un
+récapitulatif, affiche `email_log` et simule la purge des photos, sans rien
+supprimer.
 
 Le transport reste `console` : les e-mails sont composés et journalisés
 (`statut = 'simule'`), pas envoyés. Le passage au SMTP réel est décrit plus bas
@@ -467,8 +470,9 @@ cd /opt/supabase && docker compose restart functions   # si supabase/functions/ 
 > cd /opt/supabase && docker compose up -d functions
 > ```
 >
-> C'est le cas de la fonction « comptes » (invitation et lien de mot de passe),
-> ajoutée après la première mise en production.
+> C'est le cas des fonctions « comptes » (invitation et lien de mot de passe) et
+> « maintenance » (purge des photos), ajoutées après la première mise en
+> production.
 
 ### Passer aux e-mails réels
 

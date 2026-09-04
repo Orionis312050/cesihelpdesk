@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
+import { SuppressionIncident } from '../../components/admin/SuppressionIncident/SuppressionIncident'
 import { Icons } from '../../components/ui/Icons/Icons'
 import { STATUSES, STATUS_ORDER } from '../../data/helpdesk'
+import { useAuth } from '../../hooks/useAuth'
 import { useTickets } from '../../hooks/useTickets'
 import { useToast } from '../../hooks/useToast'
 import { storageService } from '../../services/storage'
@@ -13,6 +15,8 @@ import type { Ticket } from '../../types/helpdesk'
 const dateComplete = new Intl.DateTimeFormat('fr-FR', {
   dateStyle: 'full', timeStyle: 'short',
 })
+
+const dateCourte = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' })
 
 /** Délai écoulé exprimé en jours, pour situer l'ancienneté d'un incident. */
 const anciennete = (depuis: string, jusqua: string | null): string => {
@@ -34,7 +38,9 @@ const anciennete = (depuis: string, jusqua: string | null): string => {
 export const IncidentDetailPage = () => {
   const { id } = useParams()
   const [parametres] = useSearchParams()
-  const { tickets, modifier } = useTickets()
+  const navigate = useNavigate()
+  const { profil } = useAuth()
+  const { tickets, modifier, supprimer } = useTickets()
   const toast = useToast()
 
   const [charge, setCharge] = useState<Ticket | null>(null)
@@ -43,6 +49,8 @@ export const IncidentDetailPage = () => {
   const [equipe, setEquipe] = useState<Profil[]>([])
   const [photoSignee, setPhotoSignee] = useState<{ chemin: string; url: string } | null>(null)
   const [commentaire, setCommentaire] = useState<string | null>(null)
+  const [aSupprimer, setASupprimer] = useState<Ticket | null>(null)
+  const [suppressionEnCours, setSuppressionEnCours] = useState(false)
 
   const retour = parametres.get('retour')
   const lienRetour = retour ? `/suivi?${retour}` : '/suivi'
@@ -97,6 +105,27 @@ export const IncidentDetailPage = () => {
       }
       return { ...current, adminComment: valeur }
     })
+  }
+
+  // Le bouton n'apparaît que pour un administrateur. Ce n'est qu'un confort :
+  // la décision se prend en base, où la politique `tickets_suppression_admin`
+  // refuse la requête d'un technicien qui la forgerait lui-même.
+  const estAdmin = profil?.role === 'admin'
+
+  const confirmerSuppression = async () => {
+    if (!ticket) return
+    setSuppressionEnCours(true)
+    try {
+      await supprimer(ticket)
+      // `replace` : le bouton Précédent ne doit pas ramener sur la fiche d'un
+      // incident qui n'existe plus, qui n'afficherait qu'« Incident introuvable ».
+      navigate(lienRetour, { replace: true })
+    } catch {
+      // Le contexte a déjà notifié la cause du refus. La fiche est intacte :
+      // on referme simplement la fenêtre de confirmation.
+      setSuppressionEnCours(false)
+      setASupprimer(null)
+    }
   }
 
   if (chargement && !ticket) {
@@ -195,6 +224,18 @@ export const IncidentDetailPage = () => {
             </section>
           )}
 
+          {/* La purge automatique (six mois, voir docs/04) laisse cette trace :
+              sans elle, l'agent prendrait la photo pour perdue. */}
+          {!ticket.photoPath && ticket.photoDeletedAt && (
+            <section>
+              <h2 className="font-bold text-gray-500 text-sm mb-1">Photo jointe</h2>
+              <p className="text-sm text-gray-500 italic">
+                Photo supprimée automatiquement le {dateCourte.format(new Date(ticket.photoDeletedAt))},
+                la durée de conservation étant atteinte.
+              </p>
+            </section>
+          )}
+
           <section className="border-t-2 border-gray-100 pt-6 space-y-4">
             <h2 className="text-lg font-black uppercase tracking-tight">Traitement</h2>
 
@@ -245,8 +286,33 @@ export const IncidentDetailPage = () => {
               <p className="text-xs text-gray-500 mt-1">Enregistré automatiquement en quittant le champ.</p>
             </div>
           </section>
+
+          {estAdmin && (
+            <section className="border-t-2 border-gray-100 pt-6">
+              <h2 className="text-lg font-black uppercase tracking-tight">Suppression</h2>
+              <p className="text-sm text-gray-600 mt-1 mb-3">
+                Réservée aux doublons, aux essais et aux signalements déposés par erreur.
+                Un incident réellement traité se clôture en le passant en
+                « Terminé » : il reste alors dans l'historique et dans les statistiques.
+              </p>
+              <button
+                type="button"
+                onClick={() => setASupprimer(ticket)}
+                className="flex items-center gap-2 border-2 border-red-700 text-red-700 px-4 py-2 min-h-11 rounded text-sm font-bold hover:bg-red-700 hover:text-white transition-colors"
+              >
+                <Icons.Trash /> Supprimer l'incident
+              </button>
+            </section>
+          )}
         </div>
       </article>
+
+      <SuppressionIncident
+        ticket={aSupprimer}
+        occupe={suppressionEnCours}
+        onConfirmer={() => void confirmerSuppression()}
+        onAnnuler={() => setASupprimer(null)}
+      />
     </div>
   )
 }

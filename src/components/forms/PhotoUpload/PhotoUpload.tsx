@@ -121,6 +121,7 @@ export const PhotoUpload = ({ valeur, onChange }: PhotoUploadProps) => {
               <p className="pl-1 hidden sm:block">ou glisser-déposer</p>
             </div>
             <p className="text-xs text-gray-500">JPG, PNG ou WebP — 10 Mo maximum</p>
+            <p className="text-xs text-gray-500">Conservée six mois après la déclaration, puis supprimée automatiquement.</p>
           </div>
         </div>
       )}

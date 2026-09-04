@@ -51,6 +51,9 @@ avec une mauvaise connexion. La qualité reste largement suffisante.
 Une seule photo par déclaration. Pour la remplacer, touchez la croix puis
 choisissez-en une autre.
 
+La photo est conservée **six mois** après la déclaration, puis supprimée
+automatiquement. Le signalement lui-même reste dans l'historique.
+
 ## Cocher « Risque d'accident ou de blessure »
 
 Cochez cette case **uniquement** si la situation présente un danger immédiat :
@@ -110,8 +113,8 @@ professionnels. Votre compte est créé par un administrateur, qui vous transmet
 un lien pour choisir votre mot de passe. **Mot de passe oublié ?** Demandez-lui
 un nouveau lien : l'application n'envoie pas d'e-mail de récupération.
 
-Une fois connecté, des menus supplémentaires apparaissent : **Suivi** et
-**Stats**, puis **QR** et **Salles** pour les administrateurs.
+Une fois connecté, des menus supplémentaires apparaissent : **Suivi**, **Stats**
+et **QR**, puis **Salles** et **Comptes** pour les administrateurs.
 
 ## Lire le tableau de suivi
 
@@ -156,7 +159,8 @@ Cliquez sur un en-tête de colonne pour trier ; recliquez pour inverser l'ordre.
 
 Cliquez sur le titre ou sur l'icône œil. La fiche affiche l'ensemble des
 informations : coordonnées du déclarant, date, salle, types, description
-complète, photo jointe, et le temps écoulé depuis la déclaration ou le délai de
+complète, photo jointe (conservée six mois, puis remplacée par la date de sa
+suppression), et le temps écoulé depuis la déclaration ou le délai de
 résolution.
 
 L'adresse de la fiche est un lien direct, transmissible par e-mail ou par
@@ -228,7 +232,7 @@ de 30 jours** repèrent les dossiers oubliés.
 
 ## Imprimer les QR codes
 
-*Administrateurs uniquement.* Menu **QR**.
+*Techniciens et administrateurs.* Menu **QR**.
 
 **Dans la très grande majorité des cas, une seule affiche suffit.** La page
 s'ouvre directement sur l'**affiche générique** : son aperçu est visible, et le

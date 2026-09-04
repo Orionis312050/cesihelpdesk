@@ -37,6 +37,7 @@ erDiagram
         text titre
         text description
         text image_chemin "chemin Storage"
+        timestamptz image_supprimee_le "purge"
         boolean risque_accident
         statut_ticket statut
         uuid assigne_a_id FK
@@ -58,9 +59,10 @@ erDiagram
     }
 ```
 
-La table `configuration` (clé/valeur) complète le schéma : elle contient l'URL
-de la fonction de notification et le secret partagé. Elle n'apparaît pas dans le
-modèle métier car elle ne porte aucune donnée d'incident.
+La table `configuration` (clé/valeur) complète le schéma : elle contient les URL
+des fonctions « notifications » et « maintenance », le secret partagé et la
+durée de conservation des photos (`retention_photos_mois`). Elle n'apparaît pas
+dans le modèle métier car elle ne porte aucune donnée d'incident.
 
 ## Les tables
 
@@ -121,6 +123,10 @@ Cœur du modèle. Points à connaître :
   effacé si le statut revient en arrière. Calculé en base et non côté
   application, pour que le délai moyen de résolution reste juste même si un
   statut est modifié depuis le SQL Editor.
+- `image_supprimee_le` est renseigné par la purge automatique des photos
+  ([04 — Exploitation](04-exploitation.md#photos--purge-automatique)) au moment
+  où `image_chemin` est effacé. La fiche s'en sert pour distinguer « jamais de
+  photo » de « photo supprimée ».
 - Les contraintes `check` valident la longueur du titre et du nom, et le format
   de l'adresse e-mail — la validation du navigateur ne protège de rien.
 
@@ -295,6 +301,7 @@ Bucket **`incidents`**, **privé**.
 | Taille maximale | 2 Mio | Une photo compressée pèse ~200 Ko ; la marge est large |
 | Types acceptés | JPEG, PNG, WebP | Refus des autres formats côté serveur |
 | Chemin | `<année>/<uuid>.jpg` | Le nom ne révèle rien et n'est pas devinable |
+| Conservation | six mois après la déclaration | Purge nocturne par `pg_cron` et la fonction « maintenance » ; durée réglable dans `configuration` |
 
 Politiques :
 
@@ -303,6 +310,7 @@ Politiques :
 - seul le personnel connecté peut **lire** ;
 - seul un administrateur peut **supprimer** ; aucune modification n'est possible,
   une photo jointe à un signalement ne doit pas pouvoir être remplacée après coup.
+  La purge automatique, elle, passe par la clé de service, dans la fonction Edge.
 
 L'affichage passe par une URL signée valable une heure, générée à l'ouverture de
 la fiche.
@@ -326,6 +334,8 @@ Ils sont numérotés par horodatage et appliqués dans l'ordre.
 20260804090600_rls_politiques.sql        privilèges et politiques de sécurité
 20260804090700_storage_incidents.sql     bucket des photos et ses politiques
 20260804090800_notifications.sql         configuration, déclencheur urgent, tâche hebdomadaire
+20260904090000_proteger_comptes.sql      GRANT de colonne sur utilisateurs, dernier administrateur protégé
+20260904140000_purge_photos.sql          purge nocturne des photos, colonne image_supprimee_le
 ```
 
 **Ne modifiez jamais une migration déjà appliquée en production** : ajoutez-en

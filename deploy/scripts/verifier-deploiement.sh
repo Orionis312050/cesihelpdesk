@@ -92,6 +92,9 @@ c="$(code "https://$hote/auth/v1/health" -H "apikey: $SB_ANON")"
 [ "$c" = "200" ] && reussite "GET /auth/v1/health → 200" || echec "GET /auth/v1/health → $c — custom location /auth/ manquante dans NPM ?"
 c="$(code -X POST "https://$hote/functions/v1/notifications" -H "Content-Type: application/json" -d '{"mode":"recap"}')"
 [ "$c" = "401" ] && reussite "POST /functions/v1/notifications sans secret → 401" || echec "POST /functions/v1/notifications sans secret → $c (attendu 401)"
+# Sans le secret, la purge des photos ne doit pas pouvoir être déclenchée.
+c="$(code -X POST "https://$hote/functions/v1/maintenance" -H "Content-Type: application/json" -d '{"mode":"purge_photos"}')"
+[ "$c" = "401" ] && reussite "POST /functions/v1/maintenance sans secret → 401" || echec "POST /functions/v1/maintenance sans secret → $c (attendu 401)"
 # Sans jeton d'administrateur, « comptes » ne doit créer personne : c'est le seul
 # rempart, la fonction détenant la clé de service.
 c="$(code -X POST "https://$hote/functions/v1/comptes" -H "Content-Type: application/json" \

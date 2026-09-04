@@ -24,6 +24,7 @@ flowchart TB
         STO["Storage<br/>bucket privé « incidents »"]
         FN["Edge Function<br/>« notifications »"]
         FNC["Edge Function<br/>« comptes »"]
+        FNM["Edge Function<br/>« maintenance »"]
         CRON["pg_cron"]
     end
     P --> SPA
@@ -36,6 +37,8 @@ flowchart TB
     API --> DB
     DB -- "déclencheur : risque d'accident" --> FN
     CRON -- "vendredi 06:00 UTC" --> FN
+    CRON -- "chaque nuit 03:30 UTC" --> FNM
+    FNM -- "supprime les photos<br/>de plus de six mois" --> STO
     FN --> SMTP["Relais SMTP de l'établissement"]
 ```
 
@@ -58,6 +61,7 @@ la base (voir [03 — Base de données](03-base-de-donnees.md)).
 | Graphiques dessinés à la main, sans bibliothèque | [ADR-008](adr/ADR-008-graphiques-sans-bibliotheque.md) |
 | Pas de table d'historique générique | [ADR-009](adr/ADR-009-pas-de-table-audit.md) |
 | Tailwind seul, suppression des modules CSS | [ADR-010](adr/ADR-010-tailwind-seul.md) |
+| Purge des photos par une tâche planifiée et une fonction Edge | [ADR-012](adr/ADR-012-purge-des-photos-par-tache-planifiee.md) |
 
 ## Organisation du code
 
@@ -148,7 +152,7 @@ sa place ([ADR-003](adr/ADR-003-creation-par-fonction-rpc.md)).
 | Modifier statut, traitant, commentaire | ❌ | ✅ | ✅ |
 | Consulter les statistiques | ❌ | ✅ | ✅ |
 | Exporter vers Excel | ❌ | ✅ | ✅ |
-| Imprimer les QR codes | ❌ | ❌ | ✅ |
+| Imprimer les QR codes | ❌ | ✅ | ✅ |
 | Gérer salles, catégories et comptes | ❌ | ❌ | ✅ |
 | Supprimer un incident | ❌ | ❌ | ✅ |
 | Lire le journal des e-mails | ❌ | ❌ | ✅ |
@@ -190,6 +194,21 @@ Deux propriétés à préserver lors de toute évolution :
    remonter d'erreur.
 2. **Tout envoi est tracé dans `email_log`**, y compris les échecs. Sans cette
    trace, « les e-mails n'arrivent plus » est indiagnosticable.
+
+## Purge des photos
+
+Chaque nuit à 03:30 UTC, `pg_cron` appelle la fonction Edge « maintenance » —
+même mécanique que le récapitulatif : `pg_net` et secret partagé. Elle retire du
+bucket les photos des incidents déclarés depuis plus de six mois (durée réglable
+dans `public.configuration`, clé `retention_photos_mois`), puis efface
+`tickets.image_chemin` et horodate `image_supprimee_le`. La fiche conserve tout
+le reste et affiche la date de suppression à la place de la photo.
+
+Le passage par la fonction, et non par un simple `delete` SQL, n'est pas un
+détail : supprimer une ligne de `storage.objects` retire l'entrée du catalogue
+mais laisse le fichier sur le disque. Seul le service Storage libère l'espace.
+Options écartées et retour en arrière dans
+[ADR-012](adr/ADR-012-purge-des-photos-par-tache-planifiee.md).
 
 ## Conventions
 
@@ -247,14 +266,15 @@ ce qui mérite d'être testé est déjà isolé en fonctions pures dans `src/uti
 `buildReportUrl`, `ticketsVersLignes`). Ajouter Vitest et couvrir ces cinq
 fonctions représente environ une journée de travail.
 
-## Six chantiers pour la suite
+## Cinq chantiers pour la suite
 
 1. **Obtenir les identifiants SMTP** et basculer `MAIL_TRANSPORT=smtp`. C'est le
    seul point qui empêche l'application d'être pleinement opérationnelle.
 2. **Ajouter Vitest** et couvrir les cinq fonctions pures citées ci-dessus.
 3. **Notifier le déclarant** au passage en `TERMINE` : ajouter un mode
    `resolution` à la fonction `notifications` et un déclencheur sur `UPDATE`.
-4. **Purge RGPD des photos** de plus de N mois : une tâche `pg_cron` qui vide le
-   bucket et met `image_chemin` à `NULL`.
-5. **Pagination** du tableau de suivi quand le volume l'exigera.
-6. **Connexion par compte CESI** via le fournisseur Microsoft de Supabase Auth.
+4. **Pagination** du tableau de suivi quand le volume l'exigera.
+5. **Connexion par compte CESI** via le fournisseur Microsoft de Supabase Auth.
+
+La purge des photos anciennes, longtemps dans cette liste, est en place depuis
+septembre 2026 ([ADR-012](adr/ADR-012-purge-des-photos-par-tache-planifiee.md)).

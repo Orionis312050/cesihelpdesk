@@ -1,7 +1,7 @@
 /**
  * Service d'accès aux tickets d'incident.
  *
- * Deux chemins d'écriture bien distincts :
+ * Trois chemins d'écriture bien distincts :
  *
  * - **Création** : passe par la fonction `creer_ticket()` en base. Le visiteur
  *   anonyme n'a aucun droit direct sur la table `tickets` ; la fonction insère
@@ -10,10 +10,14 @@
  * - **Mise à jour** : requête directe, réservée au personnel connecté. Les
  *   colonnes modifiables sont limitées côté base par un GRANT au niveau colonne :
  *   même en forgeant une requête, on ne peut pas réécrire le nom du déclarant.
+ * - **Suppression** : requête directe également, mais la politique
+ *   `tickets_suppression_admin` la réserve aux administrateurs. Un technicien
+ *   ne reçoit pas d'erreur : sa requête ne supprime simplement aucune ligne.
  */
 
 import { supabase } from '../lib/supabase'
 import type { Status, Ticket, TicketField, TicketInput } from '../types/helpdesk'
+import { storageService } from './storage'
 
 /** Ligne renvoyée par la vue enrichie (jointures salle, technicien, catégories). */
 type TicketRow = {
@@ -28,6 +32,7 @@ type TicketRow = {
   statut: Status
   commentaire_admin: string | null
   resolu_le: string | null
+  image_supprimee_le: string | null
   assigne_a_id: string | null
   salles: { nom: string } | null
   utilisateurs: { nom_complet: string } | null
@@ -43,7 +48,7 @@ type TicketRow = {
  */
 const SELECTION = `
   id, created_at, demandeur_nom, demandeur_email, titre, description,
-  image_chemin, risque_accident, statut, commentaire_admin, resolu_le, assigne_a_id,
+  image_chemin, image_supprimee_le, risque_accident, statut, commentaire_admin, resolu_le, assigne_a_id,
   salles ( nom ),
   utilisateurs ( nom_complet ),
   ticket_categories ( categories_incident ( label ) )
@@ -69,6 +74,7 @@ const mapTicket = (row: TicketRow): Ticket => ({
   handlerId: row.assigne_a_id,
   adminComment: row.commentaire_admin ?? '',
   resolvedAt: row.resolu_le,
+  photoDeletedAt: row.image_supprimee_le,
 })
 
 /** Colonne de base correspondant à chaque champ modifiable. */
@@ -166,5 +172,40 @@ export const ticketService = {
       .eq('id', Number(id))
 
     if (error) throw new Error(`Impossible de mettre à jour l'incident : ${error.message}`)
+  },
+
+  /**
+   * Supprime définitivement un incident, ainsi que la photo qui lui est jointe.
+   *
+   * Réservé aux administrateurs par la politique `tickets_suppression_admin`.
+   * Les types d'incident associés partent avec la ligne (`on delete cascade`) ;
+   * le journal d'e-mails garde ses lignes, leur `ticket_id` passant à `null`.
+   *
+   * ORDRE DES OPÉRATIONS : la ligne d'abord, la photo ensuite. L'inverse
+   * détruirait la photo d'un incident encore présent si la base refusait la
+   * suppression. Si Storage échoue une fois la ligne partie, il ne reste qu'un
+   * fichier orphelin, et l'appelant en est averti.
+   *
+   * @param id Identifiant du ticket.
+   * @param cheminPhoto Valeur de `photoPath`, `null` en l'absence de photo.
+   * @returns `photoSupprimee` à `false` si la photo est restée dans le bucket.
+   * @throws {Error} Si la base refuse la suppression — le cas d'un technicien.
+   */
+  async supprimer(id: string, cheminPhoto: string | null): Promise<{ photoSupprimee: boolean }> {
+    // `select()` force PostgREST à renvoyer les lignes supprimées : sans lui,
+    // une suppression bloquée par RLS répond « succès » sur zéro ligne, et
+    // l'interface annoncerait une suppression qui n'a pas eu lieu.
+    const { data, error } = await supabase
+      .from('tickets')
+      .delete()
+      .eq('id', Number(id))
+      .select('id')
+
+    if (error) throw new Error(`Impossible de supprimer l'incident : ${error.message}`)
+    if (!data?.length) {
+      throw new Error("Suppression refusée : seul un administrateur peut supprimer un incident.")
+    }
+
+    return { photoSupprimee: cheminPhoto ? await storageService.supprimerPhoto(cheminPhoto) : true }
   },
 }

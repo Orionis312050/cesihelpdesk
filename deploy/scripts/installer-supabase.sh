@@ -132,7 +132,7 @@ fi
 # 3. Surcouche (recopiée à chaque exécution : c'est le dépôt qui fait foi)
 # ---------------------------------------------------------------------------
 cp "$OVERLAY/docker-compose.helpdesk.yml" docker-compose.helpdesk.yml
-for fonction in notifications comptes; do
+for fonction in notifications comptes maintenance; do
   [ -d "$HELPDESK_REPO/supabase/functions/$fonction" ] \
     || { echo "Fonction introuvable : $HELPDESK_REPO/supabase/functions/$fonction (HELPDESK_REPO ?)" >&2; exit 1; }
 done

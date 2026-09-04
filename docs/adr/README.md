@@ -20,6 +20,7 @@ ces fiches sont la trace écrite de ce travail.
 | [009](ADR-009-pas-de-table-audit.md) | Pas de table d'historique générique | Accepté |
 | [010](ADR-010-tailwind-seul.md) | Tailwind seul, suppression des modules CSS inutilisés | Accepté |
 | [011](ADR-011-perimetre-de-tests.md) | Périmètre de tests volontairement restreint | Accepté |
+| [012](ADR-012-purge-des-photos-par-tache-planifiee.md) | Purge des photos par une tâche planifiée appelant une fonction Edge | Accepté |
 
 ## Modèle
 
