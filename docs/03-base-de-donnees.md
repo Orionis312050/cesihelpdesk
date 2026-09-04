@@ -175,8 +175,8 @@ Ce que doit garantir le modèle :
 
 1. un visiteur anonyme peut déclarer un incident — c'est le principe même du QR
    code — mais ne peut lire **aucun** incident, ni aucun nom d'agent ;
-2. un technicien peut lire et traiter les incidents, mais pas réécrire le nom du
-   déclarant ni supprimer une ligne ;
+2. un technicien peut lire, traiter **et supprimer** les incidents, mais pas
+   réécrire le nom du déclarant ni la date de déclaration ;
 3. le secret des notifications n'est lisible par aucun client.
 
 ### Politiques en vigueur
@@ -193,7 +193,7 @@ Relevé du 5 août 2026 (`select * from pg_policies where schemaname='public'`) 
 | `categories_incident` | `categories_gestion_admin` | `authenticated` | ALL |
 | `tickets` | `tickets_lecture_personnel` | `authenticated` | SELECT |
 | `tickets` | `tickets_maj_personnel` | `authenticated` | UPDATE |
-| `tickets` | `tickets_suppression_admin` | `authenticated` | DELETE |
+| `tickets` | `tickets_suppression_personnel` | `authenticated` | DELETE |
 | `ticket_categories` | `ticket_categories_lecture_personnel` | `authenticated` | SELECT |
 | `ticket_categories` | `ticket_categories_ecriture_personnel` | `authenticated` | ALL |
 | `utilisateurs` | `utilisateurs_lecture_personnel` | `authenticated` | SELECT |
@@ -201,7 +201,7 @@ Relevé du 5 août 2026 (`select * from pg_policies where schemaname='public'`) 
 | `utilisateurs` | `utilisateurs_gestion_admin` | `authenticated` | ALL |
 | `email_log` | `email_log_lecture_admin` | `authenticated` | SELECT |
 
-Trois observations qui méritent d'être comprises avant toute modification :
+Quatre observations qui méritent d'être comprises avant toute modification :
 
 **`tickets` n'a aucune politique pour `anon`, et aucune politique d'INSERT.**
 Ce n'est pas un oubli. La création passe exclusivement par la fonction
@@ -218,6 +218,16 @@ droits d'exécution sont vérifiés à la planification de la requête : une
 condition `actif or public.est_personnel()` échouerait pour un visiteur anonyme
 avec « permission denied for function est_personnel », **même quand `actif` est
 vrai**. Ce piège a été rencontré et corrigé pendant le développement.
+
+**Un refus de suppression ne ressemble pas à un refus.** Une politique DELETE
+ne rejette pas la requête : elle ne lui fait correspondre aucune ligne.
+PostgREST répond alors « succès, zéro ligne supprimée », que rien ne distingue
+d'une suppression réussie — c'est ce qu'obtient un compte désactivé, ou un agent
+dont le collègue vient de supprimer le même incident. Le service applicatif
+redemande donc les lignes supprimées (`.delete().select('id')`) et traite une
+réponse vide comme un échec, au lieu d'annoncer une suppression qui n'a pas eu
+lieu. Même piège que le `Prefer: return=representation` du cahier de recette
+(R-303).
 
 ### Colonnes modifiables
 
@@ -308,8 +318,9 @@ Politiques :
 - `anon` et `authenticated` peuvent **déposer** (le formulaire public doit
   pouvoir joindre une photo sans connexion) ;
 - seul le personnel connecté peut **lire** ;
-- seul un administrateur peut **supprimer** ; aucune modification n'est possible,
-  une photo jointe à un signalement ne doit pas pouvoir être remplacée après coup.
+- le personnel connecté peut **supprimer** — la photo doit pouvoir partir avec
+  la fiche de l'incident ; aucune modification n'est possible en revanche, une
+  photo jointe à un signalement ne doit pas pouvoir être remplacée après coup.
   La purge automatique, elle, passe par la clé de service, dans la fonction Edge.
 
 L'affichage passe par une URL signée valable une heure, générée à l'ouverture de
@@ -336,6 +347,7 @@ Ils sont numérotés par horodatage et appliqués dans l'ordre.
 20260804090800_notifications.sql         configuration, déclencheur urgent, tâche hebdomadaire
 20260904090000_proteger_comptes.sql      GRANT de colonne sur utilisateurs, dernier administrateur protégé
 20260904140000_purge_photos.sql          purge nocturne des photos, colonne image_supprimee_le
+20260904160000_suppression_par_le_personnel.sql  DELETE des incidents et des photos ouvert aux techniciens
 ```
 
 **Ne modifiez jamais une migration déjà appliquée en production** : ajoutez-en

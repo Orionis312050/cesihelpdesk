@@ -45,7 +45,7 @@ sur une machine vierge.
 | R-202 | Se connecter avec un mauvais mot de passe | « Adresse e-mail ou mot de passe incorrect. » Aucune redirection | | |
 | R-203 | Se connecter en `admin` | Retour sur `/suivi`. Le nom apparaît en haut à droite. Les menus Suivi, Stats, QR et Salles sont visibles | | |
 | R-204 | Rafraîchir la page (F5) | La session est conservée. **Aucun affichage transitoire de la page de connexion** | | |
-| R-205 | Se connecter en `technicien` et ouvrir `/qr-codes`, puis `/salles` | Écran « Accès réservé » sur les deux. Les menus QR et Salles ne sont pas affichés | | |
+| R-205 | Se connecter en `technicien` et ouvrir `/qr-codes`, puis `/salles` | `/qr-codes` s'ouvre normalement ; `/salles` affiche « Accès réservé ». Les menus Suivi, Stats et QR sont visibles, Salles et Comptes ne le sont pas | | |
 | R-206 | Se déconnecter | Retour au formulaire public. Les menus d'administration disparaissent. `/suivi` redirige de nouveau vers la connexion | | |
 | R-207 | Désactiver un compte (`update utilisateurs set actif=false …`), puis s'y connecter | La connexion aboutit mais l'espace d'administration reste inaccessible | | |
 
@@ -70,6 +70,10 @@ bash scripts/verifier-rls.sh
 | R-307 | Lecture des tickets par un administrateur connecté | Tous les incidents sont renvoyés | | |
 | R-308 | Tentative de modification de `demandeur_nom` par un compte connecté | Refusée (privilège au niveau colonne) | | |
 | R-309 | Inventaire : toutes les tables ont RLS ; aucune table avec RLS et sans politique (hors `configuration`, volontairement verrouillée) ; toutes les fonctions `security definer` ont un `search_path` figé | Trois contrôles verts | | |
+| R-310 | `DELETE` d'un incident par un compte `technicien`, avec `Prefer: return=representation` | La ligne supprimée est renvoyée : le droit est **ouvert au personnel** depuis `20260904160000`. Ses `ticket_categories` sont parties en cascade | | |
+| R-311 | Le même `DELETE` avec un compte désactivé (`update public.utilisateurs set actif = false where id = …`) | Tableau vide, **zéro ligne supprimée**, l'incident est toujours là. Comme en R-303, l'en-tête est indispensable : sans lui, le refus renvoie 204 et ressemble à un succès | | |
+| R-312 | `DELETE` anonyme sur `tickets`, puis `DELETE` anonyme d'un objet du bucket `incidents` | Refusés tous les deux | | |
+| R-313 | `UPDATE` d'un objet du bucket `incidents` par un compte `technicien` | Refusé : une photo jointe reste non remplaçable, même par le personnel | | |
 
 > **Piège à retenir :** sous RLS, une lecture interdite renvoie `200 []`, pas
 > `403`. « Pas d'erreur donc c'est sécurisé » est faux. C'est aussi pourquoi la
@@ -91,6 +95,9 @@ bash scripts/verifier-rls.sh
 | R-407 | Cliquer « Réinitialiser les filtres » | Tous les incidents réapparaissent, le badge disparaît | | |
 | R-408 | Filtrer sur une combinaison sans résultat | « Aucun incident ne correspond aux filtres sélectionnés. » | | |
 | R-409 | Changer un statut depuis la liste | Le badge change de couleur. Après F5, la valeur est conservée | | |
+| R-410 | Cliquer l'icône corbeille d'une ligne, puis **Annuler** | La fenêtre de confirmation rappelle le titre, la salle et le déclarant. Après annulation, la ligne est toujours là | | |
+| R-411 | Recliquer la corbeille, puis **Supprimer définitivement** | La ligne disparaît aussitôt, notification « Incident n° X supprimé. ». Après F5, elle n'est pas revenue. Le compteur « X sur Y » a diminué | | |
+| R-412 | Refaire R-410 et R-411 avec un compte `technicien` | Même comportement qu'en administrateur : l'icône corbeille est présente et la suppression aboutit | | |
 
 ---
 
@@ -104,6 +111,11 @@ bash scripts/verifier-rls.sh
 | R-504 | Saisir un commentaire de suivi puis cliquer ailleurs | Enregistré automatiquement. Conservé après F5 | | |
 | R-505 | Passer un incident en « Terminé » | La fiche affiche « Résolu en N jours ». Le délai moyen des statistiques est recalculé | | |
 | R-506 | Ouvrir `/incident/99999` | « Incident introuvable » avec un lien de retour | | |
+| R-507 | Ouvrir une fiche depuis une liste filtrée, **Supprimer l'incident**, confirmer | Retour au suivi **avec les filtres**, notification de suppression. Le bouton Précédent du navigateur ne ramène pas sur la fiche supprimée | | |
+| R-508 | Supprimer un incident portant une photo, puis Studio → Storage → incidents | L'objet a disparu du bucket. Aucun fichier orphelin | | |
+| R-509 | Ouvrir la fenêtre de confirmation, appuyer sur `Échap` | Elle se ferme, rien n'est supprimé. Le focus revient dans la page | | |
+| R-510 | Se connecter en `technicien`, ouvrir une fiche | La section « Suppression » est présente et le bouton fonctionne, comme pour un administrateur | | |
+| R-511 | Supprimer un incident ayant déclenché une alerte « Risque » (`select * from public.email_log where ticket_id = <id>;` avant) | Après suppression, la ligne du journal existe toujours, son `ticket_id` est passé à `null` | | |
 
 ---
 
@@ -156,6 +168,7 @@ bash scripts/verifier-rls.sh
 | R-809 | Puis **Imprimer la sélection** | L'aperçu contient **3 pages** : l'affiche générique n'est pas imprimée | | |
 | R-810 | Scanner l'affiche générique | Le formulaire s'ouvre **sans** bandeau « Salle détectée », champ Salle vide et modifiable | | |
 | R-811 | Déclarer un incident depuis l'affiche générique en choisissant « B204 », puis filtrer le suivi sur Lieu = B204 | L'incident apparaît. La localisation est aussi exploitable qu'avec une affiche dédiée | | |
+| R-812 | Ouvrir `/qr-codes` en `technicien` | Même page qu'en R-801 : affiche générique, section « Affiches par salle », les deux boutons d'impression fonctionnent. Le menu QR est visible | | |
 
 ---
 
@@ -218,7 +231,7 @@ créent par R-C13.
 | ID | Étapes | Résultat attendu | OK/KO | Preuve |
 | --- | --- | --- | :---: | --- |
 | R-C01 | Ouvrir `/utilisateurs` en administrateur | La liste s'affiche, triée par nom, avec e-mail, rôle et état. Le compteur indique le nombre de comptes, d'administrateurs actifs et de comptes désactivés | | |
-| R-C02 | Passer un technicien en « Administrateur » | Notification « … est désormais administrateur. » La liste suit. Après rechargement chez l'intéressé, les menus QR, Salles et Comptes lui apparaissent | | |
+| R-C02 | Passer un technicien en « Administrateur » | Notification « … est désormais administrateur. » La liste suit. Après rechargement chez l'intéressé, les menus Salles et Comptes lui apparaissent | | |
 | R-C03 | Renommer ce compte | Notification de confirmation. Le nouveau nom apparaît aussitôt dans la colonne « Traitant » du suivi, sans rechargement manuel | | |
 | R-C04 | Renommer avec un nom vide | Message « Le nom ne peut pas être vide. » sous le champ. Aucune écriture | | |
 | R-C05 | Désactiver ce compte | Badge « Désactivé », ligne grisée. Il disparaît de la liste « Traitant » d'une fiche. Ses incidents passés portent toujours son nom | | |

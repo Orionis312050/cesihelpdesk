@@ -1,7 +1,7 @@
 /**
  * Service d'accès aux tickets d'incident.
  *
- * Deux chemins d'écriture bien distincts :
+ * Trois chemins d'écriture bien distincts :
  *
  * - **Création** : passe par la fonction `creer_ticket()` en base. Le visiteur
  *   anonyme n'a aucun droit direct sur la table `tickets` ; la fonction insère
@@ -10,10 +10,15 @@
  * - **Mise à jour** : requête directe, réservée au personnel connecté. Les
  *   colonnes modifiables sont limitées côté base par un GRANT au niveau colonne :
  *   même en forgeant une requête, on ne peut pas réécrire le nom du déclarant.
+ * - **Suppression** : requête directe également, ouverte à tout le personnel
+ *   par la politique `tickets_suppression_personnel`. Une requête refusée par
+ *   RLS ne lève pas d'erreur : elle ne supprime simplement aucune ligne, d'où
+ *   le `select()` qui suit la suppression.
  */
 
 import { supabase } from '../lib/supabase'
 import type { Status, Ticket, TicketField, TicketInput } from '../types/helpdesk'
+import { storageService } from './storage'
 
 /** Ligne renvoyée par la vue enrichie (jointures salle, technicien, catégories). */
 type TicketRow = {
@@ -168,5 +173,42 @@ export const ticketService = {
       .eq('id', Number(id))
 
     if (error) throw new Error(`Impossible de mettre à jour l'incident : ${error.message}`)
+  },
+
+  /**
+   * Supprime définitivement un incident, ainsi que la photo qui lui est jointe.
+   *
+   * Ouvert à tout le personnel par la politique `tickets_suppression_personnel`,
+   * techniciens compris. Les types d'incident associés partent avec la ligne
+   * (`on delete cascade`) ; le journal d'e-mails garde ses lignes, leur
+   * `ticket_id` passant à `null`.
+   *
+   * ORDRE DES OPÉRATIONS : la ligne d'abord, la photo ensuite. L'inverse
+   * détruirait la photo d'un incident encore présent si la base refusait la
+   * suppression. Si Storage échoue une fois la ligne partie, il ne reste qu'un
+   * fichier orphelin, et l'appelant en est averti.
+   *
+   * @param id Identifiant du ticket.
+   * @param cheminPhoto Valeur de `photoPath`, `null` en l'absence de photo.
+   * @returns `photoSupprimee` à `false` si la photo est restée dans le bucket.
+   * @throws {Error} Si la base ne supprime aucune ligne : incident déjà retiré
+   *   par un collègue, ou compte désactivé entre-temps.
+   */
+  async supprimer(id: string, cheminPhoto: string | null): Promise<{ photoSupprimee: boolean }> {
+    // `select()` force PostgREST à renvoyer les lignes supprimées : sans lui,
+    // une suppression bloquée par RLS répond « succès » sur zéro ligne, et
+    // l'interface annoncerait une suppression qui n'a pas eu lieu.
+    const { data, error } = await supabase
+      .from('tickets')
+      .delete()
+      .eq('id', Number(id))
+      .select('id')
+
+    if (error) throw new Error(`Impossible de supprimer l'incident : ${error.message}`)
+    if (!data?.length) {
+      throw new Error("Suppression impossible : l'incident n'existe plus, ou votre compte n'est plus habilité.")
+    }
+
+    return { photoSupprimee: cheminPhoto ? await storageService.supprimerPhoto(cheminPhoto) : true }
   },
 }

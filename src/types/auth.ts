@@ -2,7 +2,7 @@
  * Rôle d'un membre du personnel.
  *
  * - `admin` : accès complet (suivi, statistiques, QR codes, gestion des salles et des comptes)
- * - `technicien` : suivi et traitement des incidents uniquement
+ * - `technicien` : suivi, traitement et suppression des incidents, impression des affiches à QR code
  *
  * Le rôle est stocké dans `utilisateurs.role` et vérifié **côté base** par les
  * politiques RLS. Le masquer dans l'interface est un confort, pas une sécurité.

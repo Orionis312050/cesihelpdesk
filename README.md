@@ -25,6 +25,7 @@ les demandes depuis un espace d'administration.
 - génération et impression des affiches à QR code, une par salle ;
 - gestion des salles depuis l'application : ajout, renommage, désactivation ;
 - gestion des comptes du personnel : rôle, activation, nom affiché ;
+- suppression d'un incident, photo comprise, sur confirmation — ouverte aux techniciens ;
 - récapitulatif hebdomadaire envoyé automatiquement le vendredi matin ;
 - photos supprimées automatiquement six mois après la déclaration, le signalement restant dans l'historique.
 

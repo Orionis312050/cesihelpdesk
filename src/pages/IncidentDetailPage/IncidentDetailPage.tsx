@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
+import { SuppressionIncident } from '../../components/admin/SuppressionIncident/SuppressionIncident'
 import { Icons } from '../../components/ui/Icons/Icons'
 import { STATUSES, STATUS_ORDER } from '../../data/helpdesk'
 import { useTickets } from '../../hooks/useTickets'
@@ -36,7 +37,8 @@ const anciennete = (depuis: string, jusqua: string | null): string => {
 export const IncidentDetailPage = () => {
   const { id } = useParams()
   const [parametres] = useSearchParams()
-  const { tickets, modifier } = useTickets()
+  const navigate = useNavigate()
+  const { tickets, modifier, supprimer } = useTickets()
   const toast = useToast()
 
   const [charge, setCharge] = useState<Ticket | null>(null)
@@ -45,6 +47,8 @@ export const IncidentDetailPage = () => {
   const [equipe, setEquipe] = useState<Profil[]>([])
   const [photoSignee, setPhotoSignee] = useState<{ chemin: string; url: string } | null>(null)
   const [commentaire, setCommentaire] = useState<string | null>(null)
+  const [aSupprimer, setASupprimer] = useState<Ticket | null>(null)
+  const [suppressionEnCours, setSuppressionEnCours] = useState(false)
 
   const retour = parametres.get('retour')
   const lienRetour = retour ? `/suivi?${retour}` : '/suivi'
@@ -99,6 +103,22 @@ export const IncidentDetailPage = () => {
       }
       return { ...current, adminComment: valeur }
     })
+  }
+
+  const confirmerSuppression = async () => {
+    if (!ticket) return
+    setSuppressionEnCours(true)
+    try {
+      await supprimer(ticket)
+      // `replace` : le bouton Précédent ne doit pas ramener sur la fiche d'un
+      // incident qui n'existe plus, qui n'afficherait qu'« Incident introuvable ».
+      navigate(lienRetour, { replace: true })
+    } catch {
+      // Le contexte a déjà notifié la cause du refus. La fiche est intacte :
+      // on referme simplement la fenêtre de confirmation.
+      setSuppressionEnCours(false)
+      setASupprimer(null)
+    }
   }
 
   if (chargement && !ticket) {
@@ -259,8 +279,33 @@ export const IncidentDetailPage = () => {
               <p className="text-xs text-gray-500 mt-1">Enregistré automatiquement en quittant le champ.</p>
             </div>
           </section>
+
+          {/* Ouvert à tout le personnel, techniciens compris : la base
+              applique la même règle (`tickets_suppression_personnel`). */}
+          <section className="border-t-2 border-gray-100 pt-6">
+            <h2 className="text-lg font-black uppercase tracking-tight">Suppression</h2>
+            <p className="text-sm text-gray-600 mt-1 mb-3">
+              Réservée aux doublons, aux essais et aux signalements déposés par erreur.
+              Un incident réellement traité se clôture en le passant en
+              « Terminé » : il reste alors dans l'historique et dans les statistiques.
+            </p>
+            <button
+              type="button"
+              onClick={() => setASupprimer(ticket)}
+              className="flex items-center gap-2 border-2 border-red-700 text-red-700 px-4 py-2 min-h-11 rounded text-sm font-bold hover:bg-red-700 hover:text-white transition-colors"
+            >
+              <Icons.Trash /> Supprimer l'incident
+            </button>
+          </section>
         </div>
       </article>
+
+      <SuppressionIncident
+        ticket={aSupprimer}
+        occupe={suppressionEnCours}
+        onConfirmer={() => void confirmerSuppression()}
+        onAnnuler={() => setASupprimer(null)}
+      />
     </div>
   )
 }

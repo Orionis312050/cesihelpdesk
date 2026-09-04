@@ -59,4 +59,23 @@ export const storageService = {
     if (error) return null
     return data.signedUrl
   },
+
+  /**
+   * Retire définitivement une photo du bucket.
+   *
+   * Appelée quand un administrateur supprime un incident : la fiche disparue,
+   * plus rien en base ne permettrait de retrouver l'objet, qui occuperait le
+   * disque de la VM sans que personne puisse le rattacher à quoi que ce soit.
+   *
+   * Passe par l'API Storage et non par du SQL sur `storage.objects` : seule
+   * l'API efface le fichier en plus de son entrée de catalogue (même raison que
+   * la purge nocturne, voir `supabase/functions/maintenance/`).
+   *
+   * @param chemin Valeur de `tickets.image_chemin`.
+   * @returns `true` si l'objet a été retiré, `false` si Storage a refusé.
+   */
+  async supprimerPhoto(chemin: string): Promise<boolean> {
+    const { error } = await supabase.storage.from(BUCKET_INCIDENTS).remove([chemin])
+    return !error
+  },
 }

@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { MultiSelect } from '../../components/admin/MultiSelect/MultiSelect'
+import { SuppressionIncident } from '../../components/admin/SuppressionIncident/SuppressionIncident'
 import { Icons } from '../../components/ui/Icons/Icons'
 import { STATUSES, STATUS_ORDER } from '../../data/helpdesk'
 import { useTicketFilters } from '../../hooks/useTicketFilters'
 import { useTickets } from '../../hooks/useTickets'
 import { useToast } from '../../hooks/useToast'
-import type { Status } from '../../types/helpdesk'
+import type { Status, Ticket } from '../../types/helpdesk'
 import { valeursDistinctes, type ColonneTri } from '../../utils/ticketFilters'
 
 const dateCourte = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -40,9 +41,11 @@ const EnTeteTri = ({ colonne, libelle, colonneTri, sensTri, trierPar }: {
 
 /** Tableau de suivi des incidents, avec un filtre par colonne. */
 export const IncidentListPage = () => {
-  const { tickets, chargement, modifier } = useTickets()
+  const { tickets, chargement, modifier, supprimer } = useTickets()
   const toast = useToast()
   const [exportEnCours, setExportEnCours] = useState(false)
+  const [aSupprimer, setASupprimer] = useState<Ticket | null>(null)
+  const [suppressionEnCours, setSuppressionEnCours] = useState(false)
   const {
     filtres, filtresActifs, colonneTri, sensTri, resultats,
     definir, trierPar, reinitialiser, requete,
@@ -64,6 +67,19 @@ export const IncidentListPage = () => {
       toast.erreurDe(cause, "L'export Excel a échoué.")
     } finally {
       setExportEnCours(false)
+    }
+  }
+
+  const confirmerSuppression = async () => {
+    if (!aSupprimer) return
+    setSuppressionEnCours(true)
+    try {
+      await supprimer(aSupprimer)
+    } catch {
+      // Le contexte a déjà notifié le refus et remis la ligne dans le tableau.
+    } finally {
+      setSuppressionEnCours(false)
+      setASupprimer(null)
     }
   }
 
@@ -119,7 +135,7 @@ export const IncidentListPage = () => {
               <EnTeteTri colonne="status" libelle="Statut" colonneTri={colonneTri} sensTri={sensTri} trierPar={trierPar} />
               <EnTeteTri colonne="handler" libelle="Traitant" colonneTri={colonneTri} sensTri={sensTri} trierPar={trierPar} />
               <th scope="col" className="p-2 font-bold text-sm">Risque</th>
-              <th scope="col" className="p-2 font-bold text-sm text-center">Fiche</th>
+              <th scope="col" className="p-2 font-bold text-sm text-center">Actions</th>
             </tr>
 
             {/* Ligne de filtres : un contrôle par colonne, comme demandé au
@@ -225,15 +241,29 @@ export const IncidentListPage = () => {
                     ? <span className="text-red-700 inline-flex" title="Risque d'accident signalé"><Icons.Alert /></span>
                     : <span className="text-gray-300">—</span>}
                 </td>
-                <td className="p-2 text-center">
-                  <Link
-                    to={{ pathname: `/incident/${ticket.id}`, search: requete ? `?retour=${encodeURIComponent(requete)}` : '' }}
-                    title="Ouvrir la fiche complète"
-                    className="inline-flex items-center justify-center w-11 h-11 text-gray-500 hover:text-black hover:bg-gray-100 rounded transition-colors"
-                  >
-                    <Icons.Eye />
-                    <span className="sr-only">Fiche de l'incident n° {ticket.id}</span>
-                  </Link>
+                <td className="p-2">
+                  <div className="flex items-center justify-center">
+                    <Link
+                      to={{ pathname: `/incident/${ticket.id}`, search: requete ? `?retour=${encodeURIComponent(requete)}` : '' }}
+                      title="Ouvrir la fiche complète"
+                      className="inline-flex items-center justify-center w-11 h-11 text-gray-500 hover:text-black hover:bg-gray-100 rounded transition-colors"
+                    >
+                      <Icons.Eye />
+                      <span className="sr-only">Fiche de l'incident n° {ticket.id}</span>
+                    </Link>
+                    {/* Ouvert à tout le personnel, techniciens compris : ce sont
+                        eux qui voient passer les doublons et les essais. La base
+                        applique la même règle (`tickets_suppression_personnel`). */}
+                    <button
+                      type="button"
+                      onClick={() => setASupprimer(ticket)}
+                      title="Supprimer l'incident"
+                      className="inline-flex items-center justify-center w-11 h-11 text-gray-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                    >
+                      <Icons.Trash />
+                      <span className="sr-only">Supprimer l'incident n° {ticket.id}</span>
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -250,6 +280,13 @@ export const IncidentListPage = () => {
           </tbody>
         </table>
       </div>
+
+      <SuppressionIncident
+        ticket={aSupprimer}
+        occupe={suppressionEnCours}
+        onConfirmer={() => void confirmerSuppression()}
+        onAnnuler={() => setASupprimer(null)}
+      />
     </div>
   )
 }

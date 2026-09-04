@@ -81,9 +81,30 @@ export const TicketsProvider = ({ children }: TicketsProviderProps) => {
     }
   }, [charges, toast])
 
+  const supprimer = useCallback(async (ticket: Ticket) => {
+    // Même filet que pour `modifier` : la ligne disparaît immédiatement du
+    // tableau, et revient telle quelle si la base refuse la suppression.
+    const precedent = charges
+    setCharges(current => current.filter(autre => autre.id !== ticket.id))
+
+    try {
+      const { photoSupprimee } = await ticketService.supprimer(ticket.id, ticket.photoPath)
+
+      // La fiche est bel et bien supprimée : annoncer un échec serait faux.
+      // Reste à signaler le fichier orphelin, que plus rien ne rattache à un
+      // incident et que la purge nocturne ne trouvera jamais.
+      if (photoSupprimee) toast.succes(`Incident n° ${ticket.id} supprimé.`)
+      else toast.erreur(`Incident n° ${ticket.id} supprimé, mais sa photo n'a pas pu être retirée du stockage.`)
+    } catch (cause) {
+      setCharges(precedent)
+      toast.erreurDe(cause, "Impossible de supprimer l'incident.")
+      throw cause
+    }
+  }, [charges, toast])
+
   const valeur = useMemo<TicketsContextValue>(
-    () => ({ tickets, chargement, recharger, modifier }),
-    [tickets, chargement, recharger, modifier],
+    () => ({ tickets, chargement, recharger, modifier, supprimer }),
+    [tickets, chargement, recharger, modifier, supprimer],
   )
 
   return <TicketsContext value={valeur}>{children}</TicketsContext>

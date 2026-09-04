@@ -44,7 +44,7 @@ export const router = createBrowserRouter([
         lazy: async () => ({ Component: (await import('../pages/DefinirMotDePassePage/DefinirMotDePassePage')).DefinirMotDePassePage }),
       },
 
-      // Espace d'administration : personnel connecté
+      // Espace d'administration : personnel connecté, technicien ou administrateur
       {
         element: <ProtectedRoute />,
         children: [
@@ -61,17 +61,20 @@ export const router = createBrowserRouter([
             lazy: async () => ({ Component: (await import('../pages/StatsPage/StatsPage')).StatsPage }),
           },
           { path: 'nouveau', element: <ReportPage /> },
-        ],
-      },
-
-      // Réservé aux administrateurs
-      {
-        element: <ProtectedRoute roles={['admin']} />,
-        children: [
+          // Les affiches ne lisent que la liste publique des salles : un
+          // technicien qui remplace une affiche abîmée n'a pas à solliciter un
+          // administrateur pour la réimprimer.
           {
             path: 'qr-codes',
             lazy: async () => ({ Component: (await import('../pages/QrCodesPage/QrCodesPage')).QrCodesPage }),
           },
+        ],
+      },
+
+      // Réservé aux administrateurs : référentiels et comptes
+      {
+        element: <ProtectedRoute roles={['admin']} />,
+        children: [
           {
             path: 'salles',
             lazy: async () => ({ Component: (await import('../pages/SallesPage/SallesPage')).SallesPage }),

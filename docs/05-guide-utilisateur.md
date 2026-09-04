@@ -113,8 +113,8 @@ professionnels. Votre compte est créé par un administrateur, qui vous transmet
 un lien pour choisir votre mot de passe. **Mot de passe oublié ?** Demandez-lui
 un nouveau lien : l'application n'envoie pas d'e-mail de récupération.
 
-Une fois connecté, des menus supplémentaires apparaissent : **Suivi** et
-**Stats**, puis **QR** et **Salles** pour les administrateurs.
+Une fois connecté, des menus supplémentaires apparaissent : **Suivi**, **Stats**
+et **QR**, puis **Salles** et **Comptes** pour les administrateurs.
 
 ## Lire le tableau de suivi
 
@@ -129,7 +129,7 @@ Le tableau liste tous les incidents, du plus récent au plus ancien.
 | Statut | Modifiable directement dans la liste |
 | Traitant | Agent affecté |
 | Risque | ⚠ si un risque d'accident a été signalé |
-| Fiche | Ouvre le détail complet |
+| Actions | Ouvre le détail complet ; supprime l'incident |
 
 **Les lignes sur fond rouge signalent un risque d'accident.** Elles sont à
 traiter en priorité.
@@ -203,6 +203,34 @@ C'est ce commentaire qui permet à un collègue de reprendre le dossier sans vou
 appeler. « Vanne thermostatique commandée le 12/03, livraison annoncée sous
 15 jours » vaut mieux que « en attente ».
 
+## Supprimer un incident
+
+**Accessible à tout le service technique**, techniciens comme administrateurs :
+ce sont les agents qui voient passer les doublons, et attendre un administrateur
+pour retirer une ligne évidente ne protégeait personne.
+
+Deux chemins, au choix : l'icône **corbeille** au bout de la ligne dans le
+tableau de suivi, ou le bouton **Supprimer l'incident** en bas de la fiche. Une
+fenêtre rappelle le titre, la salle et le déclarant, et demande confirmation —
+`Échap` ou **Annuler** referme sans rien toucher.
+
+À réserver aux **doublons, aux essais et aux signalements déposés par erreur**,
+ou à la demande d'effacement d'un déclarant. Un incident réellement traité se
+clôture en le passant en **Terminé** : il alimente alors les statistiques et
+garde la trace de ce qui a été fait. Supprimer un incident traité, c'est effacer
+le travail du service.
+
+La suppression est **définitive** :
+
+- la fiche, sa description et le commentaire de suivi disparaissent ;
+- la photo jointe est retirée du stockage ;
+- l'incident sort du tableau de suivi, des exports Excel et des statistiques.
+
+Rien ne permet de le rétablir depuis l'application : il n'y a **ni corbeille ni
+historique des suppressions**. Seule une restauration de sauvegarde le ferait
+revenir, en ramenant la base à son état d'alors. Lisez la fenêtre de
+confirmation avant de valider — c'est le seul garde-fou.
+
 ## Exporter vers Excel
 
 Bouton **Exporter (.xlsx)** en haut du tableau.
@@ -232,7 +260,7 @@ de 30 jours** repèrent les dossiers oubliés.
 
 ## Imprimer les QR codes
 
-*Administrateurs uniquement.* Menu **QR**.
+*Techniciens et administrateurs.* Menu **QR**.
 
 **Dans la très grande majorité des cas, une seule affiche suffit.** La page
 s'ouvre directement sur l'**affiche générique** : son aperçu est visible, et le
